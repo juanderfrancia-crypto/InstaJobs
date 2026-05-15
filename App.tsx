@@ -1,10 +1,9 @@
 import React from 'react';
 import { StatusBar } from 'react-native';
-import { NavigationContainer, useNavigation } from '@react-navigation/native';
+import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { AuthProvider, useAuth } from '@/hooks/useAuth';
-import { useNotifications } from '@/hooks/useNotifications';
 import { MainTabs } from '@/navigation/MainTabs';
 
 // Auth screens
@@ -33,12 +32,6 @@ import { MyApplicationsScreen } from '@/screens/profile/MyApplicationsScreen';
 
 const Stack = createNativeStackNavigator();
 
-function NotificationHandler() {
-  const navigation = useNavigation<any>();
-  useNotifications(navigation);
-  return null;
-}
-
 function RootNavigator() {
   const { session, loading, isNewUser } = useAuth();
 
@@ -62,7 +55,6 @@ function RootNavigator() {
         </>
       ) : (
         <>
-          <NotificationHandler />
           <Stack.Screen name="Main" component={MainTabs} />
           <Stack.Screen name="WorkerProfile"  component={WorkerProfileScreen}  options={{ headerShown: false }} />
           <Stack.Screen name="JobDetail"      component={JobDetailScreen}      options={{ headerShown: false }} />

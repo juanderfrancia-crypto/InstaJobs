@@ -2,9 +2,11 @@ import React from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, SHADOW_LG } from '@/constants';
 import { useAuth } from '@/hooks/useAuth';
+import { useNotifications } from '@/hooks/useNotifications';
 
 import { HomeScreen }    from '@/screens/HomeScreen';
 import { SearchScreen }  from '@/screens/SearchScreen';
@@ -69,6 +71,8 @@ function TabBar({ state, descriptors, navigation }: any) {
 
 export function MainTabs() {
   const { user } = useAuth();
+  const navigation = useNavigation<any>();
+  useNotifications(navigation);
   const isWorker = user?.role === 'worker';
 
   return (
