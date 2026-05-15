@@ -1,0 +1,45 @@
+{
+  "expo": {
+    "name": "InstaJobs",
+    "slug": "instajobs",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/iconoinsta.png",
+    "userInterfaceStyle": "light",
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#F97316"
+    },
+    "assetBundlePatterns": ["**/*"],
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "com.instajobs.app"
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/iconoinsta.png",
+        "backgroundColor": "#F97316"
+      },
+      "package": "com.instajobs.app",
+      "permissions": [
+        "ACCESS_FINE_LOCATION",
+        "ACCESS_COARSE_LOCATION",
+        "CAMERA",
+        "READ_EXTERNAL_STORAGE",
+        "WRITE_EXTERNAL_STORAGE"
+      ]
+    },
+    "plugins": [
+      [
+        "expo-location",
+        {
+          "locationAlwaysAndWhenInUsePermission": "Necesitamos tu ubicación para mostrarte trabajadores cercanos."
+        }
+      ]
+    ],
+    "newArchEnabled": false,
+    "scheme": "instajobs",
+    "extra": {}
+  }
+}
