@@ -74,6 +74,11 @@ export function ProfileScreen({ navigation }: any) {
       label: isWorker ? 'Mis trabajos realizados' : 'Mis publicaciones',
       onPress: () => navigation.navigate('MyActivity'),
     },
+    ...(isWorker ? [{
+      iconName: 'send-outline' as keyof typeof Ionicons.glyphMap,
+      label: 'Mis postulaciones',
+      onPress: () => navigation.navigate('MyApplications'),
+    }] : []),
     {
       iconName: 'star-outline',
       label: 'Mis calificaciones',

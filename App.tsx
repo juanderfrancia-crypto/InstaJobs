@@ -1,9 +1,10 @@
 import React from 'react';
 import { StatusBar } from 'react-native';
-import { NavigationContainer } from '@react-navigation/native';
+import { NavigationContainer, useNavigation } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { AuthProvider, useAuth } from '@/hooks/useAuth';
+import { useNotifications } from '@/hooks/useNotifications';
 import { MainTabs } from '@/navigation/MainTabs';
 
 // Auth screens
@@ -28,8 +29,15 @@ import { MyRatingsScreen } from '@/screens/profile/MyRatingsScreen';
 import { HelpScreen } from '@/screens/profile/HelpScreen';
 import { TermsScreen } from '@/screens/profile/TermsScreen';
 import { ComingSoonScreen } from '@/screens/profile/ComingSoonScreen';
+import { MyApplicationsScreen } from '@/screens/profile/MyApplicationsScreen';
 
 const Stack = createNativeStackNavigator();
+
+function NotificationHandler() {
+  const navigation = useNavigation<any>();
+  useNotifications(navigation);
+  return null;
+}
 
 function RootNavigator() {
   const { session, loading, isNewUser } = useAuth();
@@ -54,6 +62,7 @@ function RootNavigator() {
         </>
       ) : (
         <>
+          <NotificationHandler />
           <Stack.Screen name="Main" component={MainTabs} />
           <Stack.Screen name="WorkerProfile"  component={WorkerProfileScreen}  options={{ headerShown: false }} />
           <Stack.Screen name="JobDetail"      component={JobDetailScreen}      options={{ headerShown: false }} />
@@ -66,7 +75,8 @@ function RootNavigator() {
           <Stack.Screen name="MyRatings"      component={MyRatingsScreen}      options={{ headerShown: false }} />
           <Stack.Screen name="Help"           component={HelpScreen}           options={{ headerShown: false }} />
           <Stack.Screen name="Terms"          component={TermsScreen}          options={{ headerShown: false }} />
-          <Stack.Screen name="ComingSoon"     component={ComingSoonScreen}     options={{ headerShown: false }} />
+          <Stack.Screen name="ComingSoon"       component={ComingSoonScreen}       options={{ headerShown: false }} />
+          <Stack.Screen name="MyApplications" component={MyApplicationsScreen}   options={{ headerShown: false }} />
         </>
       )}
     </Stack.Navigator>

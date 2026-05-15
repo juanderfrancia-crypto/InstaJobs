@@ -204,7 +204,9 @@ export function WorkerProfileScreen({ route, navigation }: any) {
                   <Ionicons name="star-outline" size={28} color={COLORS.textTertiary} />
                 </View>
                 <Text style={styles.emptyReviewsTitle}>Sin reseñas aún</Text>
-                <Text style={styles.emptyReviewsText}>Todavía no tiene calificaciones de clientes</Text>
+                <Text style={styles.emptyReviewsText}>
+                  Es un trabajador nuevo en InstaJobs. Sé el primero en contratarlo y dejar una reseña.
+                </Text>
               </View>
             ) : (
               reviews.map(review => (

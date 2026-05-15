@@ -30,9 +30,28 @@ export default {
         'CAMERA',
         'READ_EXTERNAL_STORAGE',
         'WRITE_EXTERNAL_STORAGE',
+        'RECEIVE_BOOT_COMPLETED',
+        'VIBRATE',
       ],
+      googleServicesFile: process.env.GOOGLE_SERVICES_JSON ?? './google-services.json',
+    },
+    ios: {
+      supportsTablet: false,
+      bundleIdentifier: IS_DEV ? 'com.instajobs.app.dev' : 'com.instajobs.app',
+      infoPlist: {
+        UIBackgroundModes: ['remote-notification'],
+      },
     },
     plugins: [
+      [
+        'expo-notifications',
+        {
+          icon: './assets/iconoinsta.png',
+          color: '#F97316',
+          defaultChannel: 'default',
+          sounds: [],
+        },
+      ],
       [
         'expo-location',
         {

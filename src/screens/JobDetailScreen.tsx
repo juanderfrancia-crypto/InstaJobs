@@ -8,6 +8,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/hooks/useAuth';
+import { sendPushNotification } from '@/lib/notifications';
 import { COLORS, CATEGORIES, SHADOW_SM, SHADOW_MD } from '@/constants';
 import { Badge } from '@/components/UI';
 import { JobPost } from '@/types';
@@ -71,6 +72,12 @@ export function JobDetailScreen({ route, navigation }: any) {
       }
     } else {
       setApplied(true);
+      sendPushNotification(
+        job.client_id,
+        'Nueva postulación',
+        `${user?.full_name ?? 'Un trabajador'} aplicó a: ${job.title}`,
+        { screen: 'JobApplications', jobId: job.id, jobTitle: job.title },
+      );
       Alert.alert(
         'Aplicación enviada',
         'El cliente podrá ver tu perfil y contactarte por WhatsApp si estás interesado.',

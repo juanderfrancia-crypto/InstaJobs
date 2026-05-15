@@ -6,6 +6,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { supabase } from '@/lib/supabase';
+import { sendPushNotification } from '@/lib/notifications';
 import { COLORS, CATEGORIES, SHADOW_SM, SHADOW_MD } from '@/constants';
 import { Avatar, Badge, StarRating } from '@/components/UI';
 
@@ -76,10 +77,19 @@ export function JobApplicationsScreen({ route, navigation }: any) {
           text: 'Aceptar',
           onPress: async () => {
             setActionLoading(appId);
+            const app = applications.find(a => a.id === appId);
             await Promise.all([
               supabase.from('job_applications').update({ status: 'accepted' }).eq('id', appId),
               supabase.from('job_posts').update({ status: 'in_progress' }).eq('id', jobId),
             ]);
+            if (app?.worker_id) {
+              sendPushNotification(
+                app.worker_id,
+                '¡Fuiste contratado!',
+                `El cliente te eligió para: ${job?.title ?? 'un trabajo'}`,
+                { screen: 'MyApplications' },
+              );
+            }
             await load();
             setActionLoading(null);
           },
@@ -99,7 +109,16 @@ export function JobApplicationsScreen({ route, navigation }: any) {
           style: 'destructive',
           onPress: async () => {
             setActionLoading(appId);
+            const app = applications.find(a => a.id === appId);
             await supabase.from('job_applications').update({ status: 'rejected' }).eq('id', appId);
+            if (app?.worker_id) {
+              sendPushNotification(
+                app.worker_id,
+                'Postulación no seleccionada',
+                `El cliente eligió a otro trabajador para: ${job?.title ?? 'un trabajo'}`,
+                { screen: 'MyApplications' },
+              );
+            }
             await load();
             setActionLoading(null);
           },
@@ -120,6 +139,14 @@ export function JobApplicationsScreen({ route, navigation }: any) {
           onPress: async () => {
             await supabase.from('job_posts').update({ status: 'completed' }).eq('id', jobId);
             setJob((prev: any) => ({ ...prev, status: 'completed' }));
+            if (accepted?.worker_id) {
+              sendPushNotification(
+                accepted.worker_id,
+                'Trabajo completado',
+                `El cliente marcó "${job?.title ?? 'tu trabajo'}" como completado. ¡Revisa si recibiste una reseña!`,
+                { screen: 'MyApplications' },
+              );
+            }
             if (accepted?.worker) {
               navigation.navigate('Review', {
                 jobId,

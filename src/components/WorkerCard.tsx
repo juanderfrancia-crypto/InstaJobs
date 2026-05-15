@@ -41,12 +41,11 @@ export function WorkerCard({ worker, onPress }: WorkerCardProps) {
           <View style={styles.metaRow}>
             <Ionicons name="location-outline" size={11} color={COLORS.textTertiary} />
             <Text style={styles.metaText}>{worker.municipality}</Text>
-            {worker.rating !== undefined && (
-              <>
-                <Text style={styles.dot}>·</Text>
-                <StarRating rating={worker.rating} count={worker.reviews_count} size={11} />
-              </>
-            )}
+            <Text style={styles.dot}>·</Text>
+            {worker.reviews_count > 0
+              ? <StarRating rating={worker.rating ?? 0} count={worker.reviews_count} size={11} />
+              : <View style={styles.newBadge}><Text style={styles.newBadgeText}>Nuevo</Text></View>
+            }
           </View>
 
           <View style={styles.availRow}>
@@ -100,6 +99,11 @@ const styles = StyleSheet.create({
   metaRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   metaText: { fontSize: 11, color: COLORS.textTertiary },
   dot: { fontSize: 11, color: COLORS.textTertiary },
+  newBadge: {
+    backgroundColor: COLORS.primaryLight, borderRadius: 8,
+    paddingHorizontal: 6, paddingVertical: 2,
+  },
+  newBadgeText: { fontSize: 10, fontWeight: '700', color: COLORS.primaryDark },
   availRow: { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 2 },
   availDot: { width: 7, height: 7, borderRadius: 4 },
   availText: { fontSize: 11, fontWeight: '600' },
