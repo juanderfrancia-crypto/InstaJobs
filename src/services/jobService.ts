@@ -11,11 +11,12 @@ export interface PaginatedResult<T> {
 
 export async function fetchOpenJobs(opts: {
   municipality?: string;
+  municipalities?: string[];
   category?: string;
   query?: string;
   page?: number;
 }): Promise<PaginatedResult<JobPost>> {
-  const { municipality, category, query, page = 0 } = opts;
+  const { municipality, municipalities, category, query, page = 0 } = opts;
   const from = page * PAGE_SIZE;
   const to   = from + PAGE_SIZE - 1;
 
@@ -26,7 +27,8 @@ export async function fetchOpenJobs(opts: {
     .order('created_at', { ascending: false })
     .range(from, to);
 
-  if (municipality) q = q.eq('municipality', municipality);
+  if (municipalities && municipalities.length > 1) q = q.in('municipality', municipalities);
+  else if (municipality) q = q.eq('municipality', municipality);
   if (category)     q = q.eq('trade_category', category);
   if (query?.trim()) q = q.ilike('title', `%${query.trim()}%`);
 
@@ -50,6 +52,7 @@ export async function createJob(data: {
   urgency_detail: string | null;
   budget_min: number | null;
   budget_max: number | null;
+  workers_needed: number;
   status: string;
   photos: string[];
 }) {
@@ -59,7 +62,7 @@ export async function createJob(data: {
 
 export async function updateJob(
   jobId: string,
-  updates: Partial<Pick<JobPost, 'trade_category' | 'title' | 'description' | 'municipality' | 'urgency' | 'budget_min' | 'budget_max' | 'photos'>> & { urgency_detail?: string | null }
+  updates: Partial<Pick<JobPost, 'trade_category' | 'title' | 'description' | 'municipality' | 'urgency' | 'budget_min' | 'budget_max' | 'photos' | 'workers_needed'>> & { urgency_detail?: string | null }
 ) {
   const { error } = await supabase.from('job_posts').update(updates).eq('id', jobId);
   if (error) throw error;

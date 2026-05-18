@@ -16,15 +16,15 @@ export function WelcomeScreen({ navigation }: any) {
       <StatusBar translucent backgroundColor="transparent" barStyle="light-content" />
 
       <View style={styles.hero}>
-        <View style={styles.logoWrapper}>
+        <View style={styles.logoWrap}>
           <Image
-            source={require('../../../assets/logoinsta.png')}
+            source={require('../../../assets/logon.png')}
             style={styles.logoImage}
             resizeMode="contain"
           />
         </View>
         <Text style={styles.tagline}>
-          Conectamos oficios con personas{'\n'}en tu mismo municipio
+          Conectamos oficios con personas{'\n'}en tu municipio
         </Text>
       </View>
 
@@ -74,19 +74,19 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingTop: 20,
   },
-  logoWrapper: {
-    borderRadius: 24,
+  logoWrap: {
+    width: 280,
+    height: 140,
+    borderRadius: 20,
+    overflow: 'hidden',
     marginBottom: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.22,
-    shadowRadius: 14,
-    elevation: 8,
+    backgroundColor: '#fff',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   logoImage: {
-    width: 240,
-    height: 120,
-    borderRadius: 24,
+    width: 280,
+    height: 140,
   },
   tagline: {
     fontSize: 16,

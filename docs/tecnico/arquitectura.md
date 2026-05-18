@@ -1,6 +1,6 @@
 # Arquitectura Técnica — InstaJobs
 
-**Versión:** 1.0  
+**Versión:** 2.0  
 **Fecha:** Mayo 2026
 
 ---
@@ -13,12 +13,13 @@
 | Framework | React Native | 0.81.5 |
 | UI Library | React | 19.1.0 |
 | Lenguaje | TypeScript | strict mode |
-| Backend / DB | Supabase (PostgreSQL) | — |
+| Backend / DB | Supabase (PostgreSQL + Realtime + Storage + Edge Functions) | — |
 | Auth | Supabase Phone Auth + Twilio | — |
+| Notificaciones push | Expo Push Notifications | — |
 | Iconografía | @expo/vector-icons (Ionicons) | ^15.1.1 |
 | Navegación | React Navigation | native-stack + bottom-tabs |
 | Safe Area | react-native-safe-area-context | ~5.6.0 |
-| Storage local | @react-native-async-storage | 2.2.0 |
+| Build / distribución | EAS Build (Expo Application Services) | — |
 
 ---
 
@@ -26,35 +27,63 @@
 
 ```
 instajobs/
-├── App.tsx                        # Entry point, NavigationContainer, AuthProvider
-├── src/
-│   ├── constants/index.ts         # COLORS, SHADOW_SM/MD/LG, CATEGORIES, MUNICIPALITIES
-│   ├── types/index.ts             # Interfaces TypeScript (User, WorkerProfile, JobPost…)
-│   ├── lib/
-│   │   └── supabase.ts            # Cliente Supabase + AppState handler
-│   ├── hooks/
-│   │   └── useAuth.tsx            # AuthProvider, sesión, isNewUser, signOut
-│   ├── navigation/
-│   │   └── MainTabs.tsx           # Bottom tab navigator personalizado
-│   ├── components/
-│   │   ├── UI.tsx                 # Button, Badge, StarRating, Avatar, Divider
-│   │   ├── WorkerCard.tsx         # Tarjeta de trabajador para listas
-│   │   └── JobCard.tsx            # Tarjeta de trabajo para listas
-│   └── screens/
-│       ├── auth/
-│       │   ├── WelcomeScreen.tsx
-│       │   ├── PhoneScreen.tsx
-│       │   ├── OTPScreen.tsx
-│       │   ├── RoleScreen.tsx
-│       │   └── OnboardingScreen.tsx
-│       ├── HomeScreen.tsx
-│       ├── SearchScreen.tsx
-│       ├── PostJobScreen.tsx
-│       ├── ChatsScreen.tsx
-│       ├── ProfileScreen.tsx
-│       ├── WorkerProfileScreen.tsx
-│       └── JobDetailScreen.tsx
-└── docs/                          # Esta carpeta
+├── App.tsx                          # Entry point, NavigationContainer, AuthProvider, ErrorBoundary
+├── supabase/
+│   ├── schema.sql
+│   ├── seed.sql
+│   ├── migrations/                  # 001–005, ejecutar en orden
+│   └── functions/
+│       └── send-notification/       # Edge Function — push via Expo Push Service
+└── src/
+    ├── constants/
+    │   ├── index.ts                 # COLORS, SHADOW_*, CATEGORIES, URGENCY_OPTIONS
+    │   └── colombiaMunicipios.ts    # 1.100+ municipios con departamento, búsqueda y utilidades
+    ├── types/
+    │   └── index.ts                 # Interfaces: User, WorkerProfile, JobPost, Review...
+    ├── lib/
+    │   ├── supabase.ts              # Cliente Supabase + AppState handler
+    │   ├── notifications.ts         # sendPushNotification — guarda in-app + invoca Edge Function
+    │   ├── storage.ts               # Subida de imágenes a Supabase Storage
+    │   └── validation.ts            # Validaciones de formulario
+    ├── services/                    # Toda la lógica de Supabase — las pantallas nunca importan supabase directamente
+    │   ├── index.ts                 # Re-exporta todos los servicios
+    │   ├── authService.ts
+    │   ├── userService.ts
+    │   ├── workerService.ts
+    │   ├── jobService.ts
+    │   ├── applicationService.ts
+    │   ├── reviewService.ts
+    │   └── notificationService.ts
+    ├── hooks/
+    │   ├── useAuth.tsx              # AuthContext — session, user, loading, isNewUser, signOut
+    │   ├── useNetworkStatus.tsx     # Detecta conexión a internet (NetInfo)
+    │   ├── useRealtimeChannel.ts    # Suscripción genérica a Supabase Realtime
+    │   ├── useUnreadCount.ts        # Badge de notificaciones no leídas — actualización en tiempo real
+    │   └── useNotifications.tsx     # Registro de push token con Expo Notifications
+    ├── components/
+    │   ├── UI.tsx                   # Button, Badge, Avatar, StarRating, Divider, SectionHeader
+    │   ├── WorkerCard.tsx           # Tarjeta de trabajador (prop `compact` para feed vs detalle)
+    │   ├── JobCard.tsx              # Tarjeta de trabajo (prop `compact`, `showApply`, `applied`)
+    │   ├── SkeletonCard.tsx         # WorkerCardSkeleton, JobCardSkeleton, ChatRowSkeleton
+    │   ├── MunicipioSearch.tsx      # Buscador de municipios con autocomplete
+    │   └── NetworkStatus.tsx        # NoInternetScreen, LoadingScreen
+    ├── navigation/
+    │   └── MainTabs.tsx             # Bottom tab navigator (Home, Buscar, Publicar, Chats, Perfil)
+    └── screens/
+        ├── auth/                    # WelcomeScreen, PhoneScreen, OTPScreen, RoleScreen, OnboardingScreen
+        ├── profile/                 # EditProfileScreen, MyActivityScreen, MyApplicationsScreen,
+        │                            # MyRatingsScreen, HelpScreen, TermsScreen, ComingSoonScreen
+        ├── HomeScreen.tsx
+        ├── SearchScreen.tsx
+        ├── ChatsScreen.tsx
+        ├── ProfileScreen.tsx
+        ├── NotificationsScreen.tsx
+        ├── WorkerProfileScreen.tsx
+        ├── ClientProfileScreen.tsx
+        ├── JobDetailScreen.tsx
+        ├── JobApplicationsScreen.tsx
+        ├── PostJobScreen.tsx
+        └── ReviewScreen.tsx
 ```
 
 ---
@@ -69,7 +98,7 @@ RootNavigator (NativeStack, headerShown: false)
 │   ├── Phone
 │   ├── OTP
 │   ├── Role
-│   └── Onboarding
+│   └── Terms
 │
 ├── [Con sesión + isNewUser]
 │   ├── Role
@@ -79,20 +108,45 @@ RootNavigator (NativeStack, headerShown: false)
     ├── Main → MainTabs (BottomTabs)
     │   ├── Home
     │   ├── Search
-    │   ├── Post          ← botón circular elevado
+    │   ├── PostJob       ← botón circular elevado (solo clientes)
     │   ├── Chats
     │   └── Profile
-    ├── WorkerProfile     ← headerShown: false (header propio)
-    ├── JobDetail         ← headerShown: false (header propio)
-    └── PostJob           ← headerShown: false (header propio)
+    ├── WorkerProfile
+    ├── JobDetail
+    ├── ClientProfile
+    ├── JobApplications
+    ├── Review
+    ├── PostJob
+    ├── EditProfile
+    ├── MyActivity
+    ├── MyRatings
+    ├── Help
+    ├── Terms
+    ├── ComingSoon
+    ├── MyApplications
+    └── Notifications
 ```
+
+---
+
+## Capa de servicios
+
+Las pantallas nunca importan `supabase` directamente. Toda la lógica de BD va en `src/services/`:
+
+```
+pantalla → services/xyzService.ts → supabase
+```
+
+Esto permite:
+- Testear servicios de forma aislada
+- Cambiar queries en un solo lugar
+- Mantener pantallas limpias de lógica de datos
 
 ---
 
 ## Patrón Safe Area (consistente en todas las pantallas)
 
 ```tsx
-// ✅ Patrón correcto — todas las pantallas de la app usan esto
 const insets = useSafeAreaInsets();
 
 <View style={styles.container}>
@@ -100,13 +154,13 @@ const insets = useSafeAreaInsets();
   <View style={[styles.header, { paddingTop: insets.top + 10 }]}>
     {/* contenido del header */}
   </View>
-  {/* resto de la pantalla */}
 </View>
 
-// ❌ No usar SafeAreaView de react-native — no da control visual del header
+// No usar SafeAreaView de react-native — no da control visual del header
 ```
 
-**Regla:** Pantallas con header naranja usan `barStyle="light-content"`. Pantallas con header blanco (JobDetail) usan `barStyle="dark-content"`.
+Pantallas con header azul → `barStyle="light-content"`.  
+Pantallas con fondo claro → `barStyle="dark-content"`.
 
 ---
 
@@ -115,7 +169,6 @@ const insets = useSafeAreaInsets();
 El flujo de autenticación usa `AppState` para evitar que el usuario sea deslogueado al salir a revisar el SMS:
 
 ```ts
-// lib/supabase.ts
 AppState.addEventListener('change', (state) => {
   if (state === 'active') supabase.auth.startAutoRefresh();
   else supabase.auth.stopAutoRefresh();
@@ -129,19 +182,39 @@ La navegación post-login usa `isNewUser` en el `AuthProvider` para evitar race 
 
 ---
 
+## Sistema de notificaciones
+
+Funciona en dos capas:
+
+**1. In-app** — tabla `notifications` en Supabase. El hook `useUnreadCount` se suscribe a Realtime y actualiza el badge del ícono de campana en tiempo real.
+
+**2. Push** — `sendPushNotification` en `src/lib/notifications.ts`:
+1. Guarda la notificación en la tabla `notifications` (in-app)
+2. Invoca la Edge Function `send-notification` de Supabase
+3. La Edge Function busca el `push_token` del usuario y envía la notificación vía Expo Push Service
+
+Los tokens push se registran con `useNotifications` hook durante el inicio de sesión.
+
+---
+
 ## Constantes de estilo
 
 ```ts
-// Sombras — usar siempre estas constantes, nunca valores inline
-SHADOW_SM  // elevation: 2  — cards secundarias
-SHADOW_MD  // elevation: 4  — cards principales
-SHADOW_LG  // elevation: 7  — elementos flotantes (tab bar, botones CTA)
+// Paleta de colores principal
+COLORS.primary       // #2563EB — azul primario (CTAs, links, iconos activos)
+COLORS.primaryDark   // #1D4ED8 — azul oscuro
+COLORS.primaryLight  // #EFF6FF — azul muy claro (fondos activos)
+COLORS.accent        // #FF6B00 — naranja acento (badges, notificaciones, destacados)
+COLORS.text          // #0F172A — azul oscuro/negro azulado (texto principal)
+COLORS.background    // #F8FAFC — gris muy claro (fondo general)
+COLORS.border        // #E2E8F0 — gris claro (bordes, divisores)
 
-// Colores primarios
-COLORS.primary      // #F97316 — naranja principal
-COLORS.primaryDark  // #EA580C — naranja oscuro (texto activo)
-COLORS.primaryLight // #FFF7ED — naranja muy claro (fondos activos)
-COLORS.whatsapp     // #25D366 — verde WhatsApp
+// Sombras — usar siempre estas constantes, nunca valores inline
+SHADOW_SM      // elevation: 3  — elementos secundarios
+SHADOW_MD      // elevation: 8  — cards principales
+SHADOW_LG      // elevation: 14 — elementos flotantes
+SHADOW_PRIMARY // elevation: 8, shadowColor azul — botones CTA primarios
+SHADOW_HEADER  // elevation: 10, shadowColor azul — cabeceras de pantalla
 ```
 
 ---
@@ -150,5 +223,8 @@ COLORS.whatsapp     // #25D366 — verde WhatsApp
 
 - **Sin emojis en código** — usar siempre `<Ionicons name="..." />` de @expo/vector-icons
 - **Sin `SafeAreaView` de react-native** — usar `useSafeAreaInsets()` siempre
+- **Sin imports de `supabase` en pantallas** — usar siempre los servicios de `src/services/`
 - **Path alias `@/`** — apunta a `src/`. Configurado en `babel.config.js` con `babel-plugin-module-resolver`
 - **TypeScript estricto** — todos los componentes con tipos explícitos
+- **Skeleton en primera carga** — usar `isFirstLoad` ref para mostrar skeleton solo al inicio, no en refrescos
+- **Notificaciones best-effort** — `sendPushNotification` está en try/catch y nunca bloquea el flujo principal

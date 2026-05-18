@@ -2,15 +2,16 @@ import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Linking, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Avatar, StarRating } from './UI';
-import { COLORS, CATEGORIES, SHADOW_MD, SHADOW_SM } from '@/constants';
+import { COLORS, CATEGORIES, SHADOW_MD, SHADOW_SM, SHADOW_PRIMARY } from '@/constants';
 import { WorkerProfile } from '@/types';
 
 interface WorkerCardProps {
   worker: WorkerProfile;
   onPress: () => void;
+  compact?: boolean;
 }
 
-export const WorkerCard = React.memo(function WorkerCard({ worker, onPress }: WorkerCardProps) {
+export const WorkerCard = React.memo(function WorkerCard({ worker, onPress, compact }: WorkerCardProps) {
   const tradeLabels = worker.trades
     .map(t => CATEGORIES.find(c => c.id === t)?.label ?? t)
     .join(' · ');
@@ -66,14 +67,20 @@ export const WorkerCard = React.memo(function WorkerCard({ worker, onPress }: Wo
       </View>
 
       <View style={styles.actions}>
-        <TouchableOpacity style={styles.profileBtn} onPress={onPress} activeOpacity={0.8}>
+        <TouchableOpacity
+          style={[styles.profileBtn, compact && styles.profileBtnFull]}
+          onPress={onPress}
+          activeOpacity={0.8}
+        >
           <Ionicons name="person-outline" size={14} color={COLORS.primary} />
-          <Text style={styles.profileBtnText}>Ver perfil</Text>
+          <Text style={styles.profileBtnText}>{compact ? 'Ver perfil completo' : 'Ver perfil'}</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={styles.waBtn} onPress={handleWhatsApp} activeOpacity={0.8}>
-          <Ionicons name="logo-whatsapp" size={16} color="#fff" />
-          <Text style={styles.waBtnText}>Contactar por WhatsApp</Text>
-        </TouchableOpacity>
+        {!compact && (
+          <TouchableOpacity style={styles.waBtn} onPress={handleWhatsApp} activeOpacity={0.8}>
+            <Ionicons name="logo-whatsapp" size={16} color="#fff" />
+            <Text style={styles.waBtnText}>Contactar por WhatsApp</Text>
+          </TouchableOpacity>
+        )}
       </View>
     </TouchableOpacity>
   );
@@ -83,8 +90,8 @@ const styles = StyleSheet.create({
   card: {
     backgroundColor: COLORS.card,
     borderRadius: 18,
-    borderWidth: 0.5,
-    borderColor: COLORS.border,
+    borderWidth: 1,
+    borderColor: 'rgba(0,0,0,0.06)',
     padding: 14,
     marginBottom: 10,
     ...SHADOW_MD,
@@ -119,12 +126,15 @@ const styles = StyleSheet.create({
     justifyContent: 'center', gap: 5,
     paddingHorizontal: 14,
   },
+  profileBtnFull: { flex: 1 },
   profileBtnText: { fontSize: 12, fontWeight: '600', color: COLORS.primary },
   waBtn: {
     flex: 1, height: 38, borderRadius: 11,
     backgroundColor: COLORS.whatsapp,
     flexDirection: 'row', alignItems: 'center',
     justifyContent: 'center', gap: 6,
+    ...SHADOW_PRIMARY,
+    shadowColor: '#25D366',
   },
   waBtnText: { fontSize: 12, fontWeight: '700', color: '#fff' },
 });

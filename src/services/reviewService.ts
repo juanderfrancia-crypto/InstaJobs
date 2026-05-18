@@ -22,7 +22,7 @@ export async function submitReview(data: {
 export async function fetchReviewsByTarget(userId: string, limit = 20): Promise<Review[]> {
   const { data, error } = await supabase
     .from('reviews')
-    .select('*, reviewer:users!reviewer_id(full_name)')
+    .select('*, reviewer:users_public!reviewer_id(full_name)')
     .eq('reviewed_id', userId)
     .order('created_at', { ascending: false })
     .limit(limit);
@@ -38,7 +38,7 @@ export async function fetchClientProfileData(clientId: string): Promise<ClientPr
     { data: reviews },
   ] = await Promise.all([
     supabase
-      .from('users')
+      .from('users_public')
       .select('id, full_name, municipality, avatar_url, verified_phone, verified_id, created_at')
       .eq('id', clientId)
       .single(),
@@ -52,7 +52,7 @@ export async function fetchClientProfileData(clientId: string): Promise<ClientPr
       .limit(3),
     supabase
       .from('reviews')
-      .select('id, rating, comment, created_at, reviewer:users(full_name)')
+      .select('id, rating, comment, created_at, reviewer:users_public(full_name)')
       .eq('reviewed_id', clientId)
       .order('created_at', { ascending: false })
       .limit(10),

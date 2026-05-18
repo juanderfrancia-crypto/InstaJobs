@@ -45,6 +45,7 @@ export interface JobPost {
   budget_max?: number;
   status: 'open' | 'in_progress' | 'completed' | 'cancelled';
   photos: string[];
+  workers_needed: number;
   created_at: string;
   client?: User;
   applications_count?: number;

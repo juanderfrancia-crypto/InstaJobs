@@ -4,11 +4,12 @@ import { PAGE_SIZE, PaginatedResult } from './jobService';
 
 export async function fetchAvailableWorkers(opts: {
   municipality?: string;
+  municipalities?: string[];
   category?: string;
   query?: string;
   page?: number;
 }): Promise<PaginatedResult<WorkerProfile>> {
-  const { municipality, category, query, page = 0 } = opts;
+  const { municipality, municipalities, category, query, page = 0 } = opts;
   const from = page * PAGE_SIZE;
   const to   = from + PAGE_SIZE - 1;
 
@@ -20,7 +21,8 @@ export async function fetchAvailableWorkers(opts: {
     .order('rating',           { ascending: false, nullsFirst: false })
     .range(from, to);
 
-  if (municipality) q = q.eq('municipality', municipality);
+  if (municipalities && municipalities.length > 1) q = q.in('municipality', municipalities);
+  else if (municipality) q = q.eq('municipality', municipality);
   if (category)     q = q.contains('trades', [category]);
   if (query?.trim()) q = q.ilike('full_name', `%${query.trim()}%`);
 

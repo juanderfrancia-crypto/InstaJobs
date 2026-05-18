@@ -7,119 +7,165 @@ Historial de cambios ordenado de más reciente a más antiguo.
 ## [Unreleased] — Mayo 2026
 
 ### Agregado
-- `docs/` — carpeta de documentación con resumen ejecutivo, arquitectura, BD y pantallas
+- **Búsqueda por departamento** en SearchScreen
+  - Toggle "Solo [Municipio]" / "Todo [Departamento]" visible al seleccionar municipio
+  - Utilidades `getDepartamentoByMunicipio` y `getMunicipiosEnDepartamento` en `colombiaMunicipios.ts`
+  - Servicios `fetchOpenJobs` y `fetchAvailableWorkers` aceptan `municipalities?: string[]` para filtrar con `.in()`
+
+- **Documentación actualizada** — todos los docs en `docs/` reflejan el estado actual del MVP
+
+### Corregido
+- **Avatar roto en Android** — `SHADOW_SM` (elevation: 3) en el View interior del Avatar causaba que las fotos no se renderizaran en Android. Eliminado el shadow del Avatar.
+- **Skeleton en bucle en HomeScreen** — `useUnreadCount` sin try/catch causaba posibles fallos silenciosos que afectaban el canal Realtime. Agregado manejo de errores.
+- **RLS `users`** — `phone` y `push_token` eran visibles para todos los usuarios autenticados. Creada vista `users_public` sin campos sensibles y actualizada la política SELECT.
+- **Queries rotas post-RLS** — `reviewService.ts` usaba `from('users')` para leer datos de otros usuarios. Migradas a `from('users_public')` y joins actualizados.
+
+---
+
+## [1.3.0] — Mayo 2026
+
+### Agregado
+- **Sistema de notificaciones completo**
+  - Tabla `notifications` en Supabase con RLS y Realtime (`005_notifications.sql`)
+  - `notificationService.ts` — fetchNotifications, fetchUnreadCount, markAllRead, storeNotification
+  - `useUnreadCount` hook — badge en tiempo real vía Supabase Realtime
+  - `useNotifications` hook — registro de push token con Expo Notifications
+  - `NotificationsScreen` — lista con skeleton, iconos contextuales, fondo azul para no leídas, auto-marcar al abrir
+  - `src/lib/notifications.ts` — `sendPushNotification` guarda in-app + invoca Edge Function
+  - Edge Function `send-notification` — busca push_token y envía via Expo Push Service
+  - Bell button en HomeScreen con badge de no leídas
+  - `NotificationsScreen` registrada en el navegador principal
+
+---
+
+## [1.2.0] — Mayo 2026
 
 ### Cambiado
-- **SearchScreen:** reescritura completa
-  - Consciente del rol: trabajadores buscan `job_posts`, clientes buscan `worker_profiles`
-  - Municipio opcional con chip "Todos" (antes era filtro obligatorio que devolvía vacío)
-  - Todos los municipios visibles (antes solo 8)
-  - Chip "Todos" también en categorías
-  - Contador de resultados con municipio seleccionado
-  - Estado inicial informativo en lugar de pantalla vacía
+- **Paleta de colores** — migración de naranja a azul primario
+  - `primary`: `#F97316` → `#2563EB` (Azul Primario)
+  - `primaryDark`: `#EA580C` → `#1D4ED8`
+  - `primaryLight`: `#FFF7ED` → `#EFF6FF`
+  - `text`: `#1C1C1A` → `#0F172A` (Azul Oscuro / Negro Azulado)
+  - `background`: `#F5F5F3` → `#F8FAFC` (Gris Muy Claro)
+  - `border`: `#E8E8E4` → `#E2E8F0` (Gris Claro)
+  - Agregado `accent: '#FF6B00'` (Naranja Acento — badges, notificaciones, destacados)
+  - Sombras actualizadas: `shadowColor` de naranja a azul
 
-- **HomeScreen:** barra de búsqueda funcional
-  - Reemplazado `TouchableOpacity` (redirigía a SearchScreen) por `TextInput` real
-  - Filtrado inline en tiempo real sobre la lista cargada
-  - Clientes: filtra por nombre del trabajador o categoría de oficio
-  - Trabajadores: filtra por título o descripción del trabajo
-  - Botón X para limpiar búsqueda
-  - Empty state diferenciado: "sin resultados" vs "no hay en la zona"
+---
+
+## [1.1.0] — Mayo 2026
+
+### Agregado
+- **ProfileScreen** reescritura completa
+  - Tarjeta flotante con avatar, nombre, rol y badges
+  - Tarjeta de disponibilidad flotante (trabajadores)
+  - Menú agrupado en 3 secciones con iconos de color (estilo iOS Settings)
+  - Banner Premium
+  - Cerrar sesión con confirmación
+
+- **ChatsScreen** reescritura completa
+  - Tarjetas por contacto (antes era lista plana)
+  - Ordenamiento por estado: aceptados → pendientes → rechazados
+  - Botón WhatsApp exclusivo para contactos aceptados
+  - Skeleton con `ChatRowSkeleton`
+  - Empty states diferenciados con CTA según rol
+
+- **SearchScreen** segunda reescritura
+  - Grilla de 6 categorías rápidas como estado inicial
+  - Skeleton en carga
+  - `overrideCategory` para búsqueda instantánea desde categorías rápidas
+  - `scrollRef` para scroll automático al inicio en cada búsqueda
+  - Contador grande con número de resultados
+
+### Cambiado
+- **Sistema de sombras rediseñado**
+  - `SHADOW_SM/MD/LG` con valores corregidos y `shadowColor` oscuro
+  - Agregado `SHADOW_PRIMARY` — shadow coloreado para botones CTA
+  - Agregado `SHADOW_HEADER` — shadow para headers de pantalla
+
+---
+
+## [1.0.0] — Mayo 2026
+
+### Agregado
+- **HomeScreen** — saludo con primer nombre y primer apellido
+  - "Carlos Andres Mina Vasquez" → muestra "Carlos Mina"
+  - Regla: palabra[0] + palabra[2] si hay 3+ palabras, ambas si hay 2
+
+- **JobApplicationsScreen** — gestión de postulaciones para clientes
+  - Aceptar / rechazar por postulación
+  - Notificación push automática al aceptar/rechazar
+
+- **ReviewScreen** — calificación post-trabajo
+  - 5 estrellas interactivas
+  - Trigger en BD actualiza rating del trabajador automáticamente
+
+- **ClientProfileScreen** — perfil del cliente visto por trabajadores
+
+- **Pantallas de perfil:**
+  - EditProfileScreen con subida de fotos
+  - MyActivityScreen
+  - MyApplicationsScreen
+  - MyRatingsScreen
+  - HelpScreen
+  - TermsScreen (9 secciones, jurisdicción Colombia)
+  - ComingSoonScreen
+
+- **NetworkStatus** — `NoInternetScreen` y `LoadingScreen`
+- **useNetworkStatus** hook
+- **useRealtimeChannel** hook genérico para suscripciones Realtime
+- **SkeletonCard** — shimmer animado para WorkerCard, JobCard y ChatRow
 
 ---
 
 ## [0.9.0] — Mayo 2026
 
 ### Agregado
-- **PostJobScreen:** reescritura completa con Ionicons
-  - `cat.iconName` reemplaza `cat.icon` (que era undefined tras migración de emojis)
-  - Patrón correcto safe area (`View` + `useSafeAreaInsets`)
-  - Back button condicional según `navigation.canGoBack()`
-  - Iconos en chips de municipio, urgencia y botón principal
-
-- **ChatsScreen:** datos reales desde Supabase
-  - Elimina `MOCK_CHATS` hardcodeados
-  - Para clientes: query en dos pasos (job_posts → job_applications → worker_profiles)
-  - Para trabajadores: join anidado `job:job_posts(client:users(...))`
-  - Badge de estado por aplicación (Pendiente / Aceptado / Rechazado)
-  - Pull-to-refresh, loading state, empty state con Ionicons
-
-- **WorkerProfileScreen:** reescritura completa con Ionicons
-  - Hero naranja con `useSafeAreaInsets` y back button integrado
-  - Todos los emojis/texto con símbolos reemplazados por `<Ionicons />`
-  - Indicador de disponibilidad con punto de color
-  - Tabs con iconos (person-outline / star-outline)
-
-- **JobDetailScreen:** reescritura completa con Ionicons
-  - Header propio blanco con back button
-  - Ícono de categoría usando `iconName` de CATEGORIES
-  - Urgencia mapeada a Ionicons (flash, calendar-outline, time-outline)
-  - Manejo explícito de error duplicado (código `23505`)
-  - Banner de aplicación enviada con diseño mejorado
-
-### Cambiado
-- **App.tsx:** `headerShown: false` en WorkerProfile, JobDetail y PostJob
-  — cada pantalla maneja su propio header y back button
+- **PostJobScreen** reescritura completa con Ionicons
+- **ChatsScreen** — datos reales desde Supabase (eliminados mocks)
+- **WorkerProfileScreen** — reescritura con hero, tabs y stats
+- **JobDetailScreen** — reescritura con formulario de postulación y manejo de duplicados
 
 ---
 
 ## [0.8.0] — Mayo 2026
 
 ### Agregado
-- **ProfileScreen:** reescritura con safe area y Ionicons
-  - Toggle de disponibilidad con icono indicador
-  - Menú con iconos en cada ítem
-  - Banner Premium con estilo dorado
-
-- **SearchScreen:** primera versión funcional
-  - Filtros por categoría, municipio y texto
-  - Query a Supabase con filtros encadenados
-  - `WorkerCard` en resultados
-
-- **HomeScreen:** primera versión funcional
-  - Vista diferenciada cliente / trabajador
-  - Categorías con scroll horizontal
-  - Banner urgente para clientes
-  - Integración con Supabase
+- **ProfileScreen** primera versión funcional
+- **SearchScreen** primera versión funcional
+- **HomeScreen** primera versión funcional con integración Supabase
 
 ---
 
 ## [0.7.0] — Mayo 2026
 
 ### Cambiado
-- **Migración completa de emojis a Ionicons** en todos los componentes
-  - `CATEGORIES`: `icon` (emoji) → `iconName` (string Ionicons) + `textColor`
-  - `URGENCY_OPTIONS`: labels con emoji → `iconName`
-  - `UI.tsx`: Button, Badge, StarRating actualizados
-  - `WorkerCard`, `JobCard`: todos los iconos a Ionicons
-
-- **Sombras:** constantes `SHADOW_SM`, `SHADOW_MD`, `SHADOW_LG` en `constants/index.ts`
-  — usadas consistentemente en todos los componentes
+- **Migración completa de emojis a Ionicons**
+  - `CATEGORIES`: `icon` (emoji) → `iconName` (string Ionicons) + `color` + `textColor`
+  - `URGENCY_OPTIONS`: `iconName` en lugar de emojis
+  - Todos los componentes y pantallas actualizados
 
 ---
 
 ## [0.6.0] — Mayo 2026
 
 ### Cambiado
-- **Safe area consistente en todas las pantallas**
-  - Patrón unificado: `View` root + `useSafeAreaInsets()` + `paddingTop: insets.top + 10`
-  - Eliminado `SafeAreaView` de react-native en todas las pantallas
+- **Safe area consistente** en todas las pantallas
+  - Patrón unificado: `useSafeAreaInsets()` + `paddingTop: insets.top + 10`
+  - Eliminado `SafeAreaView` de react-native
   - `StatusBar translucent` con `barStyle` según color del header
-  - Headers naranjos cubren hasta la barra de notificaciones del sistema
 
 ---
 
 ## [0.5.0] — Mayo 2026
 
 ### Corregido
-- **Race condition post-OTP:** navegación `NAVIGATE 'Role' not handled`
+- **Race condition post-OTP** — `NAVIGATE 'Role' not handled`
   - Causa: `onAuthStateChange` cambiaba el árbol de navegación antes de que `navigate('Role')` pudiera ejecutarse
-  - Solución: estado `isNewUser` en `AuthProvider` — la navegación ocurre por renderizado condicional, no por imperativo
+  - Solución: estado `isNewUser` en `AuthProvider` — navegación por renderizado condicional, no imperativa
 
 ### Agregado
-- **AppState handler en supabase.ts**
-  - Pausa `autoRefresh` cuando la app va al background
-  - Evita que el usuario sea deslogueado al salir a ver el SMS del OTP
+- **AppState handler en supabase.ts** — pausa `autoRefresh` en background para evitar logout al revisar SMS
 
 ---
 
@@ -127,25 +173,15 @@ Historial de cambios ordenado de más reciente a más antiguo.
 
 ### Corregido
 - **Schema cache error:** `could not find table public.users`
-  - Causa: tablas no creadas en Supabase
-  - Solución: ejecutar SQL completo con todas las tablas y políticas RLS
-
-- **URL de Supabase incorrecta**
-  - Causa: URL incluía sufijo `/rest/v1/`
-  - Solución: usar solo `https://[project-id].supabase.co`
+- **URL de Supabase incorrecta** — no debe incluir `/rest/v1/`
 
 ---
 
 ## [0.3.0] — Mayo 2026
 
 ### Corregido
-- **PlatformConstants TurboModule error** en Expo Go
-  - Causa: `react-native: 0.76.9` incompatible con Expo Go 54 (requiere RN 0.81.5)
-  - Solución: actualizar a `react-native: 0.81.5` + `react: 19.1.0`
-
-- **`Unable to resolve Fontisto.ttf`**
-  - Causa: Metro no configurado para assets de fuentes
-  - Solución: crear `metro.config.js` con `expo/metro-config`
+- **PlatformConstants TurboModule error** — actualizado `react-native: 0.76.9` → `0.81.5`
+- **`Unable to resolve Fontisto.ttf`** — creado `metro.config.js` con `expo/metro-config`
 
 ---
 
@@ -153,19 +189,14 @@ Historial de cambios ordenado de más reciente a más antiguo.
 
 ### Agregado
 - Autenticación SMS/OTP con Twilio
-  - Número canadiense (+1) para envío de SMS
-  - Template de mensaje: `Tu código InstaJobs es {{ .Code }}`
-- Flujo completo: WelcomeScreen → PhoneScreen → OTPScreen → RoleScreen → OnboardingScreen
-- Schema de Supabase: tablas users, worker_profiles, job_posts, job_applications, reviews
+- Flujo completo: Welcome → Phone → OTP → Role → Onboarding
+- Schema Supabase: users, worker_profiles, job_posts, job_applications, reviews
 
 ---
 
 ## [0.1.0] — Mayo 2026
 
 ### Agregado
-- Setup inicial del proyecto
-  - Expo SDK 54.0.34, React Native 0.81.5, React 19.1.0
-  - TypeScript con path alias `@/` → `src/`
-  - `babel-plugin-module-resolver` para aliases
-  - `react-native-safe-area-context`, `@react-navigation/native-stack`, `@react-navigation/bottom-tabs`
-  - Supabase client configurado
+- Setup inicial: Expo SDK 54, React Native 0.81.5, React 19.1.0, TypeScript
+- Path alias `@/` → `src/`
+- Supabase client configurado

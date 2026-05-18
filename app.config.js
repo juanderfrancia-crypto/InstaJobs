@@ -17,7 +17,7 @@ export default {
     android: {
       adaptiveIcon: {
         foregroundImage: './assets/icon.png',
-        backgroundColor: '#F97316',
+        backgroundColor: '#2563EB',
       },
       package: IS_DEV ? 'com.instajobs.app.dev' : 'com.instajobs.app',
       permissions: [
@@ -43,7 +43,7 @@ export default {
         'expo-notifications',
         {
           icon: './assets/icon.png',
-          color: '#F97316',
+          color: '#2563EB',
           defaultChannel: 'default',
           sounds: [],
         },
@@ -69,7 +69,7 @@ export default {
       supabaseUrl: process.env.SUPABASE_URL,
       supabaseAnonKey: process.env.SUPABASE_ANON_KEY,
       eas: {
-        projectId: '612b48ad-e3a8-4595-b8c4-692eb89ef184',
+        projectId: '63efcc22-f406-4d4e-9106-23b1c0a1fd0b',
       },
     },
   },

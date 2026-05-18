@@ -1,16 +1,23 @@
 export const COLORS = {
-  primary: '#F97316',
-  primaryDark: '#EA580C',
-  primaryLight: '#FFF7ED',
-  primaryBorder: '#FDBA74',
+  // Azul Primario
+  primary: '#2563EB',
+  primaryDark: '#1D4ED8',
+  primaryLight: '#EFF6FF',
+  primaryBorder: '#BFDBFE',
+  // Naranja Acento
+  accent: '#FF6B00',
+  accentLight: '#FFF7ED',
+  // Neutros
   white: '#FFFFFF',
-  background: '#F5F5F3',
+  background: '#F8FAFC',
   card: '#FFFFFF',
-  border: '#E8E8E4',
-  borderLight: '#F0F0EC',
-  text: '#1C1C1A',
-  textSecondary: '#6B6B67',
-  textTertiary: '#A8A8A4',
+  border: '#E2E8F0',
+  borderLight: '#F1F5F9',
+  // Texto — Azul Oscuro/Negro Azulado
+  text: '#0F172A',
+  textSecondary: '#475569',
+  textTertiary: '#94A3B8',
+  // Semánticos
   success: '#15803D',
   successBg: '#DCFCE7',
   warning: '#A16207',
@@ -22,27 +29,43 @@ export const COLORS = {
 };
 
 export const SHADOW_SM = {
-  shadowColor: '#000',
-  shadowOffset: { width: 0, height: 1 },
-  shadowOpacity: 0.06,
-  shadowRadius: 4,
-  elevation: 2,
+  shadowColor: '#0F172A',
+  shadowOffset: { width: 0, height: 2 },
+  shadowOpacity: 0.08,
+  shadowRadius: 6,
+  elevation: 3,
 };
 
 export const SHADOW_MD = {
-  shadowColor: '#000',
-  shadowOffset: { width: 0, height: 2 },
-  shadowOpacity: 0.09,
-  shadowRadius: 8,
-  elevation: 4,
+  shadowColor: '#0F172A',
+  shadowOffset: { width: 0, height: 4 },
+  shadowOpacity: 0.13,
+  shadowRadius: 12,
+  elevation: 8,
 };
 
 export const SHADOW_LG = {
-  shadowColor: '#000',
+  shadowColor: '#0F172A',
+  shadowOffset: { width: 0, height: 6 },
+  shadowOpacity: 0.18,
+  shadowRadius: 18,
+  elevation: 14,
+};
+
+export const SHADOW_PRIMARY = {
+  shadowColor: '#2563EB',
   shadowOffset: { width: 0, height: 4 },
-  shadowOpacity: 0.13,
-  shadowRadius: 14,
-  elevation: 7,
+  shadowOpacity: 0.35,
+  shadowRadius: 10,
+  elevation: 8,
+};
+
+export const SHADOW_HEADER = {
+  shadowColor: '#1D4ED8',
+  shadowOffset: { width: 0, height: 3 },
+  shadowOpacity: 0.22,
+  shadowRadius: 8,
+  elevation: 10,
 };
 
 export const CATEGORIES = [
@@ -56,7 +79,7 @@ export const CATEGORIES = [
   { id: 'albanileria',       label: 'Albañilería',           iconName: 'build-outline',        color: '#F1F5F9', textColor: '#334155' },
   { id: 'puertas',           label: 'Puertas / Ventanas',    iconName: 'grid-outline',         color: '#FEF3C7', textColor: '#92400E' },
   { id: 'repello',           label: 'Repello',               iconName: 'construct-outline',    color: '#E0F2FE', textColor: '#075985' },
-  { id: 'carpinteria',       label: 'Carpintería',           iconName: 'cut-outline',          color: '#FFF7ED', textColor: '#9A3412' },
+  { id: 'carpinteria',       label: 'Carpintería',           iconName: 'cut-outline',          color: '#FEF3C7', textColor: '#92400E' },
   { id: 'soldadura',         label: 'Soldadura',             iconName: 'flame-outline',        color: '#F8FAFC', textColor: '#334155' },
   // Servicios del hogar
   { id: 'aseo',              label: 'Aseo del hogar',        iconName: 'shirt-outline',        color: '#F5F3FF', textColor: '#4C1D95' },

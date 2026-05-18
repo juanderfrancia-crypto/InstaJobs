@@ -30,27 +30,57 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [isNewUser, setIsNewUser] = useState(false);
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      if (session) fetchUser(session.user.id);
-      else setLoading(false);
-    }).catch(() => setLoading(false));
+    let timeoutId: NodeJS.Timeout;
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    const initAuth = async () => {
+      try {
+        // Timeout de 5 segundos para evitar pantalla blanca indefinida
+        timeoutId = setTimeout(() => {
+          setLoading(false);
+        }, 5000);
+
+        const { data: { session } } = await supabase.auth.getSession();
+        clearTimeout(timeoutId);
+        
+        setSession(session);
+        if (session) {
+          await fetchUser(session.user.id);
+        } else {
+          setLoading(false);
+        }
+      } catch (error) {
+        clearTimeout(timeoutId);
+        console.error('Error initializing auth:', error);
+        setLoading(false);
+      }
+    };
+
+    initAuth();
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
       setSession(session);
-      if (session) fetchUser(session.user.id);
-      else { setUser(null); setLoading(false); }
+      if (session) {
+        await fetchUser(session.user.id);
+      } else {
+        setUser(null);
+        setLoading(false);
+      }
     });
 
-    return () => subscription.unsubscribe();
+    return () => {
+      subscription.unsubscribe();
+      clearTimeout(timeoutId);
+    };
   }, []);
 
   const fetchUser = useCallback(async (id: string) => {
     try {
-      const { data } = await supabase.from('users').select('*').eq('id', id).single();
+      const { data, error } = await supabase.from('users').select('*').eq('id', id).maybeSingle();
+      if (error) throw error;
       if (!data) setIsNewUser(true);
       setUser(data);
-    } catch {
+    } catch (error) {
+      console.error('Error fetching user:', error);
       setUser(null);
     } finally {
       setLoading(false);
@@ -62,7 +92,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [session, fetchUser]);
 
   const signOut = useCallback(async () => {
-    await supabase.auth.signOut();
+    try { await supabase.auth.signOut(); } catch { /* ignorar — forzamos el reseteo igual */ }
     setUser(null);
     setSession(null);
     setIsNewUser(false);

@@ -1,8 +1,9 @@
 import React, { useCallback, useState } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity,
-  StyleSheet, Linking, StatusBar, Image, Dimensions, Modal,
+  StyleSheet, Linking, StatusBar, Dimensions, Modal,
 } from 'react-native';
+import { Image } from 'expo-image';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
@@ -62,7 +63,7 @@ export function WorkerProfileScreen({ route, navigation }: any) {
         {/* Cover photo */}
         <View style={[styles.coverWrap, { paddingTop: insets.top }]}>
           {worker.avatar_url ? (
-            <Image source={{ uri: worker.avatar_url }} style={styles.cover} resizeMode="cover" />
+            <Image source={{ uri: worker.avatar_url }} style={styles.cover} contentFit="cover" cachePolicy="memory-disk" transition={200} />
           ) : (
             <View style={[styles.cover, styles.coverPlaceholder, { backgroundColor: bgColor }]}>
               <Text style={styles.coverInitials}>{initials}</Text>
@@ -183,7 +184,9 @@ export function WorkerProfileScreen({ route, navigation }: any) {
                       <Image
                         source={{ uri: url }}
                         style={styles.photoThumb}
-                        resizeMode="cover"
+                        contentFit="cover"
+                        cachePolicy="memory-disk"
+                        transition={200}
                       />
                     </TouchableOpacity>
                   ))}
@@ -237,7 +240,8 @@ export function WorkerProfileScreen({ route, navigation }: any) {
             <Image
               source={{ uri: selectedPhoto }}
               style={styles.photoModalImg}
-              resizeMode="contain"
+              contentFit="contain"
+              cachePolicy="memory-disk"
             />
           )}
         </View>

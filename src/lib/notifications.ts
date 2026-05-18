@@ -1,4 +1,5 @@
 import { supabase } from './supabase';
+import { storeNotification } from '@/services/notificationService';
 
 export async function sendPushNotification(
   toUserId: string,
@@ -7,6 +8,9 @@ export async function sendPushNotification(
   data?: Record<string, any>,
 ) {
   try {
+    // Guardar en historial in-app (best-effort)
+    await storeNotification(toUserId, title, body, data ?? {});
+    // Enviar push notification
     await supabase.functions.invoke('send-notification', {
       body: { to_user_id: toUserId, title, body, data: data ?? {} },
     });

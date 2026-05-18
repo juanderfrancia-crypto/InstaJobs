@@ -1,8 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, ScrollView,
-  StyleSheet, Alert, StatusBar, ActivityIndicator, Image,
+  StyleSheet, Alert, StatusBar, ActivityIndicator,
 } from 'react-native';
+import { Image } from 'expo-image';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { pickAndUploadAvatar, pickAndUploadWorkPhoto } from '@/lib/storage';
@@ -261,7 +262,7 @@ export function EditProfileScreen({ navigation }: any) {
                   onPress={() => handleRemoveWorkPhoto(i)}
                   activeOpacity={0.8}
                 >
-                  <Image source={{ uri: url }} style={styles.photoImg} resizeMode="cover" />
+                  <Image source={{ uri: url }} style={styles.photoImg} contentFit="cover" cachePolicy="memory-disk" transition={200} />
                   <View style={styles.photoRemoveOverlay}>
                     <Ionicons name="trash-outline" size={18} color="#fff" />
                   </View>

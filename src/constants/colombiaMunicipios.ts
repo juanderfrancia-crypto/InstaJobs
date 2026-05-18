@@ -1180,6 +1180,18 @@ function normalize(str: string) {
   return str.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
 }
 
+export function getDepartamentoByMunicipio(municipio: string): string | null {
+  return COLOMBIA_MUNICIPIOS.find(m => m.municipio === municipio)?.departamento ?? null;
+}
+
+export function getMunicipiosEnDepartamento(municipio: string): string[] {
+  const item = COLOMBIA_MUNICIPIOS.find(m => m.municipio === municipio);
+  if (!item) return municipio ? [municipio] : [];
+  return COLOMBIA_MUNICIPIOS
+    .filter(m => m.departamento === item.departamento)
+    .map(m => m.municipio);
+}
+
 export function searchMunicipios(query: string, limit = 10): MunicipioItem[] {
   if (query.length < 2) return [];
   const q = normalize(query);

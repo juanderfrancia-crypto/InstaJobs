@@ -1,10 +1,11 @@
 import React from 'react';
 import {
   View, Text, TouchableOpacity, StyleSheet,
-  ActivityIndicator, ViewStyle, Image,
+  ActivityIndicator, ViewStyle,
 } from 'react-native';
+import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
-import { COLORS } from '@/constants';
+import { COLORS, SHADOW_PRIMARY, SHADOW_SM } from '@/constants';
 
 // ── Button ──────────────────────────────────────────────────────────────────
 interface ButtonProps {
@@ -27,6 +28,8 @@ export function Button({ title, onPress, variant = 'primary', loading, disabled,
     : variant === 'secondary' ? COLORS.primaryDark
     : COLORS.primary;
 
+  const hasShadow = (variant === 'primary' || variant === 'whatsapp') && !disabled && !loading;
+
   return (
     <TouchableOpacity
       onPress={onPress}
@@ -35,6 +38,9 @@ export function Button({ title, onPress, variant = 'primary', loading, disabled,
         styles.btn,
         { backgroundColor: bg },
         variant === 'ghost' && { borderColor: COLORS.primary, borderWidth: 1.5 },
+        hasShadow && (variant === 'whatsapp'
+          ? { ...SHADOW_PRIMARY, shadowColor: '#25D366' }
+          : SHADOW_PRIMARY),
         (disabled || loading) && styles.btnDisabled,
         style,
       ]}
@@ -61,16 +67,16 @@ interface BadgeProps {
 }
 
 export function Badge({ label, variant = 'default', iconName, style }: BadgeProps) {
-  const configs: Record<string, { bg: string; color: string }> = {
-    success: { bg: COLORS.successBg, color: COLORS.success },
-    warning: { bg: COLORS.warningBg, color: COLORS.warning },
-    danger:  { bg: COLORS.dangerBg,  color: COLORS.danger },
-    info:    { bg: '#DBEAFE',         color: '#1E40AF' },
-    default: { bg: COLORS.borderLight, color: COLORS.textSecondary },
+  const configs: Record<string, { bg: string; color: string; border: string }> = {
+    success: { bg: COLORS.successBg,    color: COLORS.success,        border: '#86EFAC' },
+    warning: { bg: COLORS.warningBg,    color: COLORS.warning,        border: '#FCD34D' },
+    danger:  { bg: COLORS.dangerBg,     color: COLORS.danger,         border: '#FCA5A5' },
+    info:    { bg: '#DBEAFE',            color: '#1E40AF',             border: '#93C5FD' },
+    default: { bg: COLORS.borderLight,  color: COLORS.textSecondary,  border: COLORS.border },
   };
-  const { bg, color } = configs[variant];
+  const { bg, color, border } = configs[variant];
   return (
-    <View style={[styles.badge, { backgroundColor: bg }, style]}>
+    <View style={[styles.badge, { backgroundColor: bg, borderColor: border }, style]}>
       {iconName && <Ionicons name={iconName} size={9} color={color} style={{ marginRight: 3 }} />}
       <Text style={[styles.badgeText, { color }]}>{label}</Text>
     </View>
@@ -127,12 +133,17 @@ export function Avatar({ name, size = 44, colorIndex = 0, avatarUrl, onPress }: 
   const badgeSize = Math.max(18, size * 0.28);
 
   const inner = (
-    <View style={[styles.avatar, { width: size, height: size, borderRadius: size / 2, backgroundColor: bg }]}>
+    <View style={[
+      styles.avatar,
+      { width: size, height: size, borderRadius: size / 2, backgroundColor: bg },
+    ]}>
       {avatarUrl ? (
         <Image
           source={{ uri: avatarUrl }}
           style={{ width: size, height: size, borderRadius: size / 2 }}
-          resizeMode="cover"
+          contentFit="cover"
+          cachePolicy="memory-disk"
+          transition={150}
         />
       ) : (
         <Text style={[styles.avatarText, { fontSize: size * 0.35, color: text }]}>{initials}</Text>
@@ -198,6 +209,7 @@ const styles = StyleSheet.create({
     paddingVertical: 3,
     borderRadius: 20,
     alignSelf: 'flex-start',
+    borderWidth: 0.75,
   },
   badgeText: { fontSize: 10, fontWeight: '600' },
   starsRow: { flexDirection: 'row', alignItems: 'center' },

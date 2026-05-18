@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, ScrollView,
-  StyleSheet, Alert, StatusBar, Image, ActivityIndicator,
+  StyleSheet, Alert, StatusBar, ActivityIndicator,
 } from 'react-native';
+import { Image } from 'expo-image';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '@/hooks/useAuth';
@@ -40,6 +41,7 @@ export function PostJobScreen({ navigation, route }: any) {
   const [title, setTitle] = useState(editJob?.title ?? '');
   const [description, setDescription] = useState(editJob?.description ?? '');
   const [municipality, setMunicipality] = useState(editJob?.municipality ?? user?.municipality ?? '');
+  const [workersNeeded, setWorkersNeeded] = useState<number>(editJob?.workers_needed ?? 1);
   const [urgency, setUrgency] = useState(editJob?.urgency ?? 'today');
   const [urgencyDetail, setUrgencyDetail] = useState(editJob?.urgency_detail ?? '');
   const [budgetMin, setBudgetMin] = useState(editJob?.budget_min ? String(editJob.budget_min) : '');
@@ -65,6 +67,7 @@ export function PostJobScreen({ navigation, route }: any) {
           urgency_detail: urgencyDetail || null,
           budget_min: budgetMin ? parseInt(budgetMin) : null,
           budget_max: budgetMax ? parseInt(budgetMax) : null,
+          workers_needed: workersNeeded,
           photos: jobPhotos,
         });
         navigation.goBack();
@@ -85,6 +88,7 @@ export function PostJobScreen({ navigation, route }: any) {
           urgency_detail: urgencyDetail || null,
           budget_min: budgetMin ? parseInt(budgetMin) : null,
           budget_max: budgetMax ? parseInt(budgetMax) : null,
+          workers_needed: workersNeeded,
           status: 'open',
           photos: jobPhotos,
         });
@@ -189,6 +193,24 @@ export function PostJobScreen({ navigation, route }: any) {
 
         <Text style={styles.sectionLabel}>Municipio *</Text>
         <MunicipioSearch value={municipality} onChange={setMunicipality} />
+
+        <Text style={styles.sectionLabel}>¿Cuántos trabajadores necesitas? *</Text>
+        <View style={styles.vacantesRow}>
+          {[1, 2, 3, 4, 5, 10].map(n => {
+            const active = workersNeeded === n;
+            const label = n === 10 ? '10+' : String(n);
+            return (
+              <TouchableOpacity
+                key={n}
+                style={[styles.vacanteChip, active && styles.vacanteChipActive]}
+                onPress={() => setWorkersNeeded(n)}
+                activeOpacity={0.8}
+              >
+                <Text style={[styles.vacanteText, active && styles.vacanteTextActive]}>{label}</Text>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
 
         <Text style={styles.sectionLabel}>Urgencia</Text>
         <View style={styles.urgencyRow}>
@@ -304,7 +326,7 @@ export function PostJobScreen({ navigation, route }: any) {
               onPress={() => handleRemovePhoto(i)}
               activeOpacity={0.8}
             >
-              <Image source={{ uri: url }} style={styles.photoImg} resizeMode="cover" />
+              <Image source={{ uri: url }} style={styles.photoImg} contentFit="cover" cachePolicy="memory-disk" transition={200} />
               <View style={styles.photoRemoveOverlay}>
                 <Ionicons name="trash-outline" size={16} color="#fff" />
               </View>
@@ -408,6 +430,16 @@ const styles = StyleSheet.create({
   muniChipSelected: { backgroundColor: COLORS.primaryLight, borderColor: COLORS.primary },
   muniText: { fontSize: 12, color: COLORS.textSecondary },
   muniTextSelected: { color: COLORS.primaryDark, fontWeight: '600' },
+  vacantesRow: { flexDirection: 'row', gap: 8, marginBottom: 16 },
+  vacanteChip: {
+    flex: 1, height: 44, borderRadius: 12,
+    alignItems: 'center', justifyContent: 'center',
+    borderWidth: 1, borderColor: COLORS.border,
+    backgroundColor: COLORS.card, ...SHADOW_SM,
+  },
+  vacanteChipActive: { backgroundColor: COLORS.primaryLight, borderColor: COLORS.primary },
+  vacanteText: { fontSize: 15, fontWeight: '600', color: COLORS.textSecondary },
+  vacanteTextActive: { color: COLORS.primaryDark, fontWeight: '800' },
   urgencyRow: { flexDirection: 'row', gap: 8, marginBottom: 16 },
   urgChip: {
     flex: 1, paddingVertical: 12, gap: 5,

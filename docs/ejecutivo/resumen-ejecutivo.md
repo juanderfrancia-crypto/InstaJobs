@@ -1,14 +1,14 @@
 # Resumen Ejecutivo — InstaJobs
 
-**Versión:** 1.0.0  
+**Versión:** 2.0  
 **Fecha:** Mayo 2026  
-**Estado:** MVP en desarrollo activo
+**Estado:** MVP completo — listo para beta con usuarios reales
 
 ---
 
 ## ¿Qué es InstaJobs?
 
-InstaJobs es un marketplace móvil que conecta trabajadores independientes de oficios con clientes en municipios, veredas y pequeñas ciudades de Colombia.
+InstaJobs es un marketplace móvil que conecta trabajadores independientes de oficios con clientes en municipios y ciudades de Colombia. Nació en Cauca y Valle del Cauca con vocación de cobertura nacional.
 
 El problema que resuelve: en zonas rurales y pequeñas ciudades no existe una plataforma local que conecte la oferta y demanda de servicios del hogar (plomería, electricidad, construcción, etc.). Los clientes consiguen trabajadores por voz a voz, y los trabajadores dependen de referidos para conseguir trabajo.
 
@@ -16,8 +16,8 @@ El problema que resuelve: en zonas rurales y pequeñas ciudades no existe una pl
 
 ## Mercado objetivo
 
-**Geografía inicial:** Colombia  
-Municipios cubiertos: Rionegro, La Ceja, El Retiro, Marinilla, El Carmen de Viboral, Guarne, San Vicente Ferrer, La Unión, Abejorral, Cocorná, Granada, Santuario, El Peñol, Guatapé, San Rafael, San Carlos, Alejandría, Concepción y más.
+**Geografía inicial:** Cauca y Valle del Cauca  
+**Cobertura:** Nacional — todos los municipios de Colombia están disponibles en el listado  
 
 **Usuario cliente:** Propietario de vivienda o negocio que necesita contratar servicios del hogar o construcción.
 
@@ -38,7 +38,7 @@ Municipios cubiertos: Rionegro, La Ceja, El Retiro, Marinilla, El Carmen de Vibo
 
 ## Categorías de oficios
 
-Plomería · Electricidad · Construcción · Pintura · Jardinería · Techos · Albañilería · Puertas y Ventanas · Repello · Ayudante día · Carpintería · Soldadura
+Plomería · Electricidad · Construcción · Pintura · Jardinería · Techos · Albañilería · Puertas y Ventanas · Repello · Ayudante día · Carpintería · Soldadura · Aseo del hogar · Electrodomésticos · Cerrajería · Fumigación · Mudanzas/Fletes · Mecánica · Cuidado de personas · Tecnología/Sistemas
 
 ---
 
@@ -47,31 +47,37 @@ Plomería · Electricidad · Construcción · Pintura · Jardinería · Techos �
 ### Completado ✅
 - Autenticación por SMS/OTP (Twilio + Supabase Phone Auth)
 - Onboarding diferenciado por rol (cliente / trabajador)
-- Home con lista dinámica según rol, búsqueda inline y filtros por categoría
-- Búsqueda avanzada con filtros por categoría, municipio y texto
+- Home con feed dinámico según rol, filtros por categoría y saludo personalizado
+- Búsqueda avanzada por texto, categoría, municipio o todo el departamento
 - Publicación de trabajos con urgencia y presupuesto
-- Perfil completo del trabajador con stats, reseñas y contacto WhatsApp
-- Detalle del trabajo con aplicación mediante mensaje
-- Pantalla de conversaciones con datos reales de Supabase
-- Perfil de usuario con toggle de disponibilidad
-- Sistema de membresía Premium (UI lista, lógica pendiente)
+- Perfil completo del trabajador con stats, reseñas, fotos y contacto WhatsApp
+- Detalle del trabajo con formulario de postulación
+- Gestión de postulaciones — clientes aceptan/rechazan, trabajadores cancelan
+- Calificación y reseña post-trabajo (ReviewScreen)
+- Pantalla de conversaciones con tarjetas por estado y botón WhatsApp para aceptados
+- Centro de notificaciones in-app con badge en tiempo real
+- Notificaciones push via Expo Push Service
+- Perfil de usuario con menú agrupado, disponibilidad y edición completa
+- Subida de fotos al perfil del trabajador
+- Sistema de membresía Premium (lógica de ordenamiento activa, cobro pendiente)
+- Detección de conexión a internet con pantalla de sin red
+- Términos de uso y política de privacidad
 
 ### Pendiente 🔲
-- Notificaciones push (Expo Notifications)
 - Pasarela de pago para membresía Premium (PSE / Nequi)
 - Verificación de cédula (identidad del trabajador)
 - Panel de administración web
-- Calificación y reseña post-trabajo
-- Subida de fotos al perfil del trabajador
 
 ---
 
 ## Tecnología
 
-- **Mobile:** React Native + Expo (iOS y Android desde un mismo código)
-- **Backend:** Supabase (PostgreSQL, Auth, Storage, Realtime)
-- **Auth:** Twilio SMS — número canadiense (+1) para OTP
-- **Comunicación:** WhatsApp (apertura directa vía deep link)
+- **Mobile:** React Native 0.81.5 + Expo SDK 54 (iOS y Android desde un mismo código)
+- **Backend:** Supabase (PostgreSQL, Auth, Storage, Realtime, Edge Functions)
+- **Auth:** Twilio SMS — OTP vía Supabase Phone Auth
+- **Notificaciones push:** Expo Push Notifications (Expo Push Service)
+- **Comunicación:** WhatsApp (apertura directa vía deep link `wa.me/`)
+- **Distribución:** EAS Build (Expo Application Services)
 
 ---
 

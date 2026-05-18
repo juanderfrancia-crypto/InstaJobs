@@ -2,7 +2,7 @@ import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Badge } from './UI';
-import { COLORS, CATEGORIES, SHADOW_MD } from '@/constants';
+import { COLORS, CATEGORIES, SHADOW_MD, SHADOW_PRIMARY } from '@/constants';
 import { JobPost } from '@/types';
 
 interface JobCardProps {
@@ -11,6 +11,7 @@ interface JobCardProps {
   showApply?: boolean;
   onApply?: () => void;
   applied?: boolean;
+  compact?: boolean;
 }
 
 type UrgencyKey = 'today' | 'week' | 'flexible';
@@ -34,7 +35,7 @@ const timeAgo = (dateStr: string) => {
   return `hace ${Math.floor(hrs / 24)} días`;
 };
 
-export const JobCard = React.memo(function JobCard({ job, onPress, showApply, onApply, applied }: JobCardProps) {
+export const JobCard = React.memo(function JobCard({ job, onPress, showApply, onApply, applied, compact }: JobCardProps) {
   const category = CATEGORIES.find(c => c.id === job.trade_category);
   const urgencyBase = URGENCY_CONFIG[job.urgency as UrgencyKey] ?? URGENCY_CONFIG.flexible;
   const detail = (job as any).urgency_detail;
@@ -69,19 +70,15 @@ export const JobCard = React.memo(function JobCard({ job, onPress, showApply, on
         <Badge label={urgency.label} variant={urgency.variant} iconName={urgency.iconName} />
       </View>
 
-      <Text style={styles.description} numberOfLines={2}>{job.description}</Text>
+      {!compact && (
+        <Text style={styles.description} numberOfLines={2}>{job.description}</Text>
+      )}
 
       <View style={styles.footer}>
         <View style={styles.footerLeft}>
           <Ionicons name="time-outline" size={11} color={COLORS.textTertiary} />
           <Text style={styles.time}>{timeAgo(job.created_at)}</Text>
         </View>
-        {job.photos && job.photos.length > 0 && (
-          <View style={styles.photosChip}>
-            <Ionicons name="camera-outline" size={11} color={COLORS.primary} />
-            <Text style={styles.photosChipText}>{job.photos.length} foto{job.photos.length > 1 ? 's' : ''}</Text>
-          </View>
-        )}
         {job.budget_min && job.budget_max && (
           <View style={styles.budgetRow}>
             <Ionicons name="cash-outline" size={11} color={COLORS.success} />
@@ -90,10 +87,22 @@ export const JobCard = React.memo(function JobCard({ job, onPress, showApply, on
             </Text>
           </View>
         )}
-        {job.applications_count !== undefined && (
+        {!compact && job.photos && job.photos.length > 0 && (
+          <View style={styles.photosChip}>
+            <Ionicons name="camera-outline" size={11} color={COLORS.primary} />
+            <Text style={styles.photosChipText}>{job.photos.length} foto{job.photos.length > 1 ? 's' : ''}</Text>
+          </View>
+        )}
+        {job.workers_needed > 1 && (
+          <View style={styles.vacantesChip}>
+            <Ionicons name="people-outline" size={11} color={COLORS.primary} />
+            <Text style={styles.vacantesText}>{job.workers_needed} vacantes</Text>
+          </View>
+        )}
+        {!compact && job.applications_count !== undefined && (
           <View style={styles.appsRow}>
-            <Ionicons name="people-outline" size={11} color={COLORS.textTertiary} />
-            <Text style={styles.apps}>{job.applications_count}</Text>
+            <Ionicons name="person-outline" size={11} color={COLORS.textTertiary} />
+            <Text style={styles.apps}>{job.applications_count} aplicaron</Text>
           </View>
         )}
       </View>
@@ -119,8 +128,8 @@ const styles = StyleSheet.create({
   card: {
     backgroundColor: COLORS.card,
     borderRadius: 16,
-    borderWidth: 0.5,
-    borderColor: COLORS.border,
+    borderWidth: 1,
+    borderColor: 'rgba(0,0,0,0.06)',
     padding: 14,
     marginBottom: 10,
     ...SHADOW_MD,
@@ -141,6 +150,8 @@ const styles = StyleSheet.create({
   budget: { fontSize: 11, color: COLORS.success, fontWeight: '500' },
   photosChip: { flexDirection: 'row', alignItems: 'center', gap: 3 },
   photosChipText: { fontSize: 11, color: COLORS.primary, fontWeight: '500' },
+  vacantesChip: { flexDirection: 'row', alignItems: 'center', gap: 3 },
+  vacantesText: { fontSize: 11, color: COLORS.primary, fontWeight: '600' },
   appsRow: { flexDirection: 'row', alignItems: 'center', gap: 3, marginLeft: 'auto' },
   apps: { fontSize: 11, color: COLORS.textTertiary },
   applyBtn: {
@@ -149,6 +160,7 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.primary,
     flexDirection: 'row',
     alignItems: 'center', justifyContent: 'center', gap: 6,
+    ...SHADOW_PRIMARY,
   },
   applyText: { fontSize: 13, fontWeight: '600', color: '#fff' },
   appliedChip: {

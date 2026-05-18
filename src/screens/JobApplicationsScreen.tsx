@@ -156,6 +156,9 @@ export function JobApplicationsScreen({ route, navigation }: any) {
 
   const cat = job ? CATEGORIES.find(c => c.id === job.trade_category) : null;
   const acceptedApp = applications.find(a => a.status === 'accepted');
+  const acceptedCount = applications.filter(a => a.status === 'accepted').length;
+  const workersNeeded = job?.workers_needed ?? 1;
+  const vacanciesFull = acceptedCount >= workersNeeded;
 
   return (
     <View style={styles.container}>
@@ -164,7 +167,14 @@ export function JobApplicationsScreen({ route, navigation }: any) {
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn} activeOpacity={0.7}>
           <Ionicons name="arrow-back" size={22} color={COLORS.text} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Postulantes</Text>
+        <View style={{ flex: 1 }}>
+          <Text style={styles.headerTitle}>Postulantes</Text>
+          {!loading && workersNeeded > 1 && (
+            <Text style={[styles.headerSub, vacanciesFull && styles.headerSubFull]}>
+              {acceptedCount} de {workersNeeded} vacantes cubiertas
+            </Text>
+          )}
+        </View>
         <View style={{ width: 36 }} />
       </View>
 
@@ -327,7 +337,9 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.background, alignItems: 'center', justifyContent: 'center',
     ...SHADOW_SM,
   },
-  headerTitle: { flex: 1, textAlign: 'center', fontSize: 16, fontWeight: '700', color: COLORS.text },
+  headerTitle: { textAlign: 'center', fontSize: 16, fontWeight: '700', color: COLORS.text },
+  headerSub: { textAlign: 'center', fontSize: 12, color: COLORS.textTertiary, marginTop: 1 },
+  headerSubFull: { color: COLORS.success },
   loadingWrap: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   scroll: { padding: 12, paddingBottom: 32 },
   jobCard: {

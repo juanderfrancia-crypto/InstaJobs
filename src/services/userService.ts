@@ -2,7 +2,7 @@ import { supabase } from '@/lib/supabase';
 
 export async function fetchUserById(userId: string) {
   const { data, error } = await supabase
-    .from('users')
+    .from('users_public')
     .select('id, full_name, municipality, avatar_url, verified_phone, verified_id, created_at')
     .eq('id', userId)
     .single();

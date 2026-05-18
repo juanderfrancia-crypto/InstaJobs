@@ -41,7 +41,7 @@ export function PhoneScreen({ navigation }: any) {
 
         <View style={styles.logoWrap}>
           <Image
-            source={require('../../../assets/logoinsta.png')}
+            source={require('../../../assets/logon.png')}
             style={styles.logo}
             resizeMode="contain"
           />

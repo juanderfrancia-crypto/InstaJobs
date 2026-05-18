@@ -4,7 +4,9 @@ import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { AuthProvider, useAuth } from '@/hooks/useAuth';
+import { useNetworkStatus } from '@/hooks/useNetworkStatus';
 import { MainTabs } from '@/navigation/MainTabs';
+import { NoInternetScreen, LoadingScreen } from '@/components/NetworkStatus';
 
 // Auth screens
 import { WelcomeScreen } from '@/screens/auth/WelcomeScreen';
@@ -20,6 +22,9 @@ import { ClientProfileScreen } from '@/screens/ClientProfileScreen';
 import { JobApplicationsScreen } from '@/screens/JobApplicationsScreen';
 import { ReviewScreen } from '@/screens/ReviewScreen';
 import { PostJobScreen } from '@/screens/PostJobScreen';
+
+// Notifications
+import { NotificationsScreen } from '@/screens/NotificationsScreen';
 
 // Profile screens
 import { EditProfileScreen } from '@/screens/profile/EditProfileScreen';
@@ -63,8 +68,17 @@ const eb = StyleSheet.create({
 
 function RootNavigator() {
   const { session, loading, isNewUser } = useAuth();
+  const { isOnline, isLoading } = useNetworkStatus();
 
-  if (loading) return <View style={{ flex: 1, backgroundColor: '#ffffff' }} />;
+  // Mostrar pantalla sin internet
+  if (!isOnline) {
+    return <NoInternetScreen />;
+  }
+
+  // Mostrar carga inicial
+  if (loading || isLoading) {
+    return <LoadingScreen />;
+  }
 
   return (
     <Stack.Navigator screenOptions={{ headerShown: false }}>
@@ -97,7 +111,8 @@ function RootNavigator() {
           <Stack.Screen name="Help"           component={HelpScreen}           options={{ headerShown: false }} />
           <Stack.Screen name="Terms"          component={TermsScreen}          options={{ headerShown: false }} />
           <Stack.Screen name="ComingSoon"       component={ComingSoonScreen}       options={{ headerShown: false }} />
-          <Stack.Screen name="MyApplications" component={MyApplicationsScreen}   options={{ headerShown: false }} />
+          <Stack.Screen name="MyApplications"  component={MyApplicationsScreen}   options={{ headerShown: false }} />
+          <Stack.Screen name="Notifications"   component={NotificationsScreen}     options={{ headerShown: false }} />
         </>
       )}
     </Stack.Navigator>

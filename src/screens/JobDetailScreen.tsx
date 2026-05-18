@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
+import { Image } from 'expo-image';
 import {
   View, Text, ScrollView, TouchableOpacity,
-  StyleSheet, TextInput, Alert, StatusBar, Image, Modal, Dimensions,
+  StyleSheet, TextInput, Alert, StatusBar, Modal, Dimensions,
   KeyboardAvoidingView, Platform,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -177,7 +178,7 @@ export function JobDetailScreen({ route, navigation }: any) {
                   onPress={() => setSelectedPhoto(url)}
                   activeOpacity={0.85}
                 >
-                  <Image source={{ uri: url }} style={styles.photoThumb} resizeMode="cover" />
+                  <Image source={{ uri: url }} style={styles.photoThumb} contentFit="cover" cachePolicy="memory-disk" transition={200} />
                 </TouchableOpacity>
               ))}
             </View>
@@ -254,7 +255,8 @@ export function JobDetailScreen({ route, navigation }: any) {
             <Image
               source={{ uri: selectedPhoto }}
               style={styles.photoModalImg}
-              resizeMode="contain"
+              contentFit="contain"
+              cachePolicy="memory-disk"
             />
           )}
         </View>
