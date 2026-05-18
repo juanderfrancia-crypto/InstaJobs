@@ -5,17 +5,17 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/hooks/useAuth';
 import { COLORS, SHADOW_SM, SHADOW_MD } from '@/constants';
 import { Avatar } from '@/components/UI';
+import { submitReview } from '@/services';
 
 export function ReviewScreen({ route, navigation }: any) {
-  const { jobId, jobTitle, reviewedId, reviewedName } = route.params as {
-    jobId: string;
-    jobTitle: string;
-    reviewedId: string;
-    reviewedName: string;
+  const { jobId = '', jobTitle = '', reviewedId = '', reviewedName = '' } = (route.params ?? {}) as {
+    jobId?: string;
+    jobTitle?: string;
+    reviewedId?: string;
+    reviewedName?: string;
   };
   const { user } = useAuth();
   const insets = useSafeAreaInsets();
@@ -32,27 +32,28 @@ export function ReviewScreen({ route, navigation }: any) {
       return;
     }
     setLoading(true);
-    const { error } = await supabase.from('reviews').insert({
-      job_id:      jobId,
-      reviewer_id: user?.id,
-      reviewed_id: reviewedId,
-      rating,
-      comment:     comment.trim() || null,
-    });
-    setLoading(false);
-    if (error) {
-      if (error.code === '23505') {
-        Alert.alert('Ya calificaste', 'Ya dejaste una reseña para este trabajo');
-        navigation.goBack();
-      } else {
-        Alert.alert('Error', error.message);
-      }
-    } else {
+    try {
+      await submitReview({
+        job_id:      jobId,
+        reviewer_id: user?.id,
+        reviewed_id: reviewedId,
+        rating,
+        comment:     comment.trim() || '',
+      });
       Alert.alert(
         'Reseña enviada',
         'Gracias por calificar. Tu opinión ayuda a otros a tomar mejores decisiones.',
         [{ text: 'Listo', onPress: () => navigation.popToTop() }]
       );
+    } catch (e: any) {
+      if (e?.code === '23505') {
+        Alert.alert('Ya calificaste', 'Ya dejaste una reseña para este trabajo');
+        navigation.goBack();
+      } else {
+        Alert.alert('Error', e?.message ?? 'No se pudo enviar la reseña');
+      }
+    } finally {
+      setLoading(false);
     }
   };
 

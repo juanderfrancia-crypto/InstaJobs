@@ -5,8 +5,12 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/hooks/useAuth';
+import {
+  fetchClientJobs, fetchPendingCounts,
+  fetchWorkerActivityApplications,
+  archiveJob, deleteJob,
+} from '@/services';
 import { COLORS, CATEGORIES, SHADOW_SM } from '@/constants';
 import { Badge } from '@/components/UI';
 
@@ -41,33 +45,15 @@ export function MyActivityScreen({ navigation }: any) {
     if (!user) return;
 
     if (isWorker) {
-      const { data } = await supabase
-        .from('job_applications')
-        .select('id, status, message, created_at, job:job_posts(*, client:users(full_name))')
-        .eq('worker_id', user.id)
-        .order('created_at', { ascending: false });
-      setItems(data ?? []);
+      const data = await fetchWorkerActivityApplications(user.id);
+      setItems(data);
     } else {
       const statuses = tab === 'active' ? ACTIVE_STATUSES : HISTORY_STATUSES;
-      const { data } = await supabase
-        .from('job_posts')
-        .select('*')
-        .eq('client_id', user.id)
-        .in('status', statuses)
-        .order('created_at', { ascending: false });
-      setItems(data ?? []);
+      const data = await fetchClientJobs(user.id, statuses);
+      setItems(data);
 
-      if (tab === 'active' && data?.length) {
-        const jobIds = data.map((j: any) => j.id);
-        const { data: apps } = await supabase
-          .from('job_applications')
-          .select('job_id')
-          .in('job_id', jobIds)
-          .eq('status', 'pending');
-        const counts: Record<string, number> = {};
-        (apps ?? []).forEach((a: any) => {
-          counts[a.job_id] = (counts[a.job_id] ?? 0) + 1;
-        });
+      if (tab === 'active' && data.length) {
+        const counts = await fetchPendingCounts(data.map((j: any) => j.id));
         setPendingCounts(counts);
       } else {
         setPendingCounts({});
@@ -102,14 +88,11 @@ export function MyActivityScreen({ navigation }: any) {
           text: 'Archivar',
           style: 'destructive',
           onPress: async () => {
-            const { error } = await supabase
-              .from('job_posts')
-              .update({ status: 'cancelled' })
-              .eq('id', id);
-            if (error) {
-              Alert.alert('Error', 'No se pudo archivar la publicación');
-            } else {
+            try {
+              await archiveJob(id);
               setItems(prev => prev.filter(i => i.id !== id));
+            } catch {
+              Alert.alert('Error', 'No se pudo archivar la publicación');
             }
           },
         },
@@ -127,11 +110,11 @@ export function MyActivityScreen({ navigation }: any) {
           text: 'Eliminar',
           style: 'destructive',
           onPress: async () => {
-            const { error } = await supabase.from('job_posts').delete().eq('id', id);
-            if (error) {
-              Alert.alert('Error', 'No se pudo eliminar la publicación');
-            } else {
+            try {
+              await deleteJob(id);
               setItems(prev => prev.filter(i => i.id !== id));
+            } catch {
+              Alert.alert('Error', 'No se pudo eliminar la publicación');
             }
           },
         },
@@ -229,21 +212,33 @@ export function MyActivityScreen({ navigation }: any) {
             <Badge label={sc.label} variant={sc.variant} />
           </View>
         </View>
-        <TouchableOpacity
-          style={[styles.actionBtn, isHistory ? styles.actionBtnDanger : styles.actionBtnArchive]}
-          onPress={() => isHistory
-            ? handleDeletePermanent(item.id, item.title)
-            : handleArchiveJob(item.id, item.title)
-          }
-          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-          activeOpacity={0.7}
-        >
-          <Ionicons
-            name={isHistory ? 'trash-outline' : 'archive-outline'}
-            size={17}
-            color={isHistory ? COLORS.danger : COLORS.textSecondary}
-          />
-        </TouchableOpacity>
+        <View style={styles.actionBtns}>
+          {!isHistory && item.status === 'open' && (
+            <TouchableOpacity
+              style={[styles.actionBtn, styles.actionBtnEdit]}
+              onPress={() => navigation.navigate('PostJob', { job: item })}
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              activeOpacity={0.7}
+            >
+              <Ionicons name="create-outline" size={17} color={COLORS.primary} />
+            </TouchableOpacity>
+          )}
+          <TouchableOpacity
+            style={[styles.actionBtn, isHistory ? styles.actionBtnDanger : styles.actionBtnArchive]}
+            onPress={() => isHistory
+              ? handleDeletePermanent(item.id, item.title)
+              : handleArchiveJob(item.id, item.title)
+            }
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            activeOpacity={0.7}
+          >
+            <Ionicons
+              name={isHistory ? 'trash-outline' : 'archive-outline'}
+              size={17}
+              color={isHistory ? COLORS.danger : COLORS.textSecondary}
+            />
+          </TouchableOpacity>
+        </View>
       </TouchableOpacity>
     );
   };
@@ -412,6 +407,8 @@ const styles = StyleSheet.create({
     width: 36, height: 36, borderRadius: 10,
     alignItems: 'center', justifyContent: 'center', flexShrink: 0,
   },
+  actionBtns: { flexDirection: 'row', gap: 6, flexShrink: 0 },
+  actionBtnEdit: { backgroundColor: COLORS.primaryLight },
   actionBtnArchive: { backgroundColor: COLORS.borderLight ?? '#F1F5F9' },
   actionBtnDanger: { backgroundColor: COLORS.dangerBg },
 });

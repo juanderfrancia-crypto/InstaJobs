@@ -5,11 +5,11 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/hooks/useAuth';
 import { COLORS, CATEGORIES, URGENCY_OPTIONS, SHADOW_SM, SHADOW_MD } from '@/constants';
 import { MunicipioSearch } from '@/components/MunicipioSearch';
 import { pickAndUploadJobPhoto } from '@/lib/storage';
+import { createJob, updateJob } from '@/services';
 
 const MAX_PHOTOS = 4;
 
@@ -30,18 +30,21 @@ const getWeekDays = () => {
   return days;
 };
 
-export function PostJobScreen({ navigation }: any) {
+export function PostJobScreen({ navigation, route }: any) {
   const { user } = useAuth();
   const insets = useSafeAreaInsets();
-  const [category, setCategory] = useState('');
-  const [title, setTitle] = useState('');
-  const [description, setDescription] = useState('');
-  const [municipality, setMunicipality] = useState(user?.municipality ?? '');
-  const [urgency, setUrgency] = useState('today');
-  const [urgencyDetail, setUrgencyDetail] = useState('');
-  const [budgetMin, setBudgetMin] = useState('');
-  const [budgetMax, setBudgetMax] = useState('');
-  const [jobPhotos, setJobPhotos] = useState<string[]>([]);
+  const editJob = (route?.params as any)?.job;
+  const isEditing = !!editJob?.id;
+
+  const [category, setCategory] = useState(editJob?.trade_category ?? '');
+  const [title, setTitle] = useState(editJob?.title ?? '');
+  const [description, setDescription] = useState(editJob?.description ?? '');
+  const [municipality, setMunicipality] = useState(editJob?.municipality ?? user?.municipality ?? '');
+  const [urgency, setUrgency] = useState(editJob?.urgency ?? 'today');
+  const [urgencyDetail, setUrgencyDetail] = useState(editJob?.urgency_detail ?? '');
+  const [budgetMin, setBudgetMin] = useState(editJob?.budget_min ? String(editJob.budget_min) : '');
+  const [budgetMax, setBudgetMax] = useState(editJob?.budget_max ? String(editJob.budget_max) : '');
+  const [jobPhotos, setJobPhotos] = useState<string[]>(editJob?.photos ?? []);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [loading, setLoading] = useState(false);
 
@@ -51,33 +54,55 @@ export function PostJobScreen({ navigation }: any) {
       return;
     }
     setLoading(true);
-    const { error } = await supabase.from('job_posts').insert({
-      client_id: user?.id,
-      trade_category: category,
-      title: title.trim(),
-      description: description.trim(),
-      municipality,
-      urgency,
-      urgency_detail: urgencyDetail || null,
-      budget_min: budgetMin ? parseInt(budgetMin) : null,
-      budget_max: budgetMax ? parseInt(budgetMax) : null,
-      status: 'open',
-      photos: jobPhotos,
-    });
-    setLoading(false);
-    if (error) {
-      Alert.alert('Error al publicar', error.message);
+    if (isEditing) {
+      try {
+        await updateJob(editJob.id, {
+          trade_category: category,
+          title: title.trim(),
+          description: description.trim(),
+          municipality,
+          urgency,
+          urgency_detail: urgencyDetail || null,
+          budget_min: budgetMin ? parseInt(budgetMin) : null,
+          budget_max: budgetMax ? parseInt(budgetMax) : null,
+          photos: jobPhotos,
+        });
+        navigation.goBack();
+      } catch (e: any) {
+        Alert.alert('Error al guardar', e.message);
+      } finally {
+        setLoading(false);
+      }
     } else {
-      setCategory('');
-      setTitle('');
-      setDescription('');
-      setBudgetMin('');
-      setBudgetMax('');
-      Alert.alert(
-        'Trabajo publicado',
-        'Los trabajadores de tu zona ya pueden ver tu publicación',
-        [{ text: 'Ver mis publicaciones', onPress: () => navigation.navigate('MyActivity') }]
-      );
+      try {
+        await createJob({
+          client_id: user?.id,
+          trade_category: category,
+          title: title.trim(),
+          description: description.trim(),
+          municipality,
+          urgency,
+          urgency_detail: urgencyDetail || null,
+          budget_min: budgetMin ? parseInt(budgetMin) : null,
+          budget_max: budgetMax ? parseInt(budgetMax) : null,
+          status: 'open',
+          photos: jobPhotos,
+        });
+        setCategory('');
+        setTitle('');
+        setDescription('');
+        setBudgetMin('');
+        setBudgetMax('');
+        Alert.alert(
+          'Trabajo publicado',
+          'Los trabajadores de tu zona ya pueden ver tu publicación',
+          [{ text: 'Ver mis publicaciones', onPress: () => navigation.navigate('MyActivity') }]
+        );
+      } catch (e: any) {
+        Alert.alert('Error al publicar', e?.message ?? 'No se pudo publicar el trabajo');
+      } finally {
+        setLoading(false);
+      }
     }
   };
 
@@ -109,8 +134,10 @@ export function PostJobScreen({ navigation }: any) {
           </TouchableOpacity>
         )}
         <View style={styles.headerText}>
-          <Text style={styles.headerTitle}>Publicar trabajo</Text>
-          <Text style={styles.headerSub}>Los trabajadores de tu zona lo verán de inmediato</Text>
+          <Text style={styles.headerTitle}>{isEditing ? 'Editar publicación' : 'Publicar trabajo'}</Text>
+          <Text style={styles.headerSub}>
+            {isEditing ? 'Actualiza los detalles de tu publicación' : 'Los trabajadores de tu zona lo verán de inmediato'}
+          </Text>
         </View>
       </View>
 
@@ -309,11 +336,11 @@ export function PostJobScreen({ navigation }: any) {
           activeOpacity={0.85}
         >
           {loading ? (
-            <Text style={styles.btnText}>Publicando...</Text>
+            <Text style={styles.btnText}>{isEditing ? 'Guardando...' : 'Publicando...'}</Text>
           ) : (
             <>
-              <Ionicons name="flash" size={18} color="#fff" />
-              <Text style={styles.btnText}>Publicar y buscar trabajadores</Text>
+              <Ionicons name={isEditing ? 'checkmark' : 'flash'} size={18} color="#fff" />
+              <Text style={styles.btnText}>{isEditing ? 'Guardar cambios' : 'Publicar y buscar trabajadores'}</Text>
             </>
           )}
         </TouchableOpacity>

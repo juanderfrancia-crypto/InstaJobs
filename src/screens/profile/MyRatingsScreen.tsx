@@ -5,11 +5,11 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/hooks/useAuth';
 import { COLORS, SHADOW_SM } from '@/constants';
 import { Avatar, StarRating } from '@/components/UI';
 import { Review } from '@/types';
+import { fetchReviewsByTarget } from '@/services';
 
 export function MyRatingsScreen({ navigation }: any) {
   const { user } = useAuth();
@@ -19,12 +19,9 @@ export function MyRatingsScreen({ navigation }: any) {
   const [refreshing, setRefreshing] = useState(false);
 
   const loadReviews = async () => {
-    const { data } = await supabase
-      .from('reviews')
-      .select('*, reviewer:users(full_name)')
-      .eq('reviewed_id', user?.id)
-      .order('created_at', { ascending: false });
-    setReviews(data ?? []);
+    if (!user?.id) return;
+    const data = await fetchReviewsByTarget(user.id);
+    setReviews(data);
   };
 
   useEffect(() => {

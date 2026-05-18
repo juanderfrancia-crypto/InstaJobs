@@ -1,12 +1,13 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useState } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity,
   StyleSheet, Linking, StatusBar, Image, Dimensions, Modal,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { supabase } from '@/lib/supabase';
+import { useFocusEffect } from '@react-navigation/native';
 import { COLORS, CATEGORIES, SHADOW_SM, SHADOW_MD } from '@/constants';
+import { fetchWorkerProfile, fetchReviewsByTarget } from '@/services';
 import { Avatar, StarRating, Badge } from '@/components/UI';
 import { WorkerProfile, Review } from '@/types';
 
@@ -20,32 +21,26 @@ export function WorkerProfileScreen({ route, navigation }: any) {
   const [tab, setTab] = useState<'info' | 'reviews'>('info');
   const [selectedPhoto, setSelectedPhoto] = useState<string | null>(null);
 
-  useEffect(() => {
-    loadWorker();
-    loadReviews();
-  }, []);
+  useFocusEffect(
+    useCallback(() => {
+      loadWorker();
+      loadReviews();
+    }, [])
+  );
 
   const loadWorker = async () => {
-    const { data } = await supabase
-      .from('worker_profiles')
-      .select('*')
-      .eq('user_id', initialWorker.user_id)
-      .single();
+    const data = await fetchWorkerProfile(initialWorker.user_id);
     if (data) setWorker(data);
   };
 
   const loadReviews = async () => {
-    const { data } = await supabase
-      .from('reviews')
-      .select('*, reviewer:users(full_name)')
-      .eq('reviewed_id', initialWorker.user_id)
-      .order('created_at', { ascending: false })
-      .limit(20);
-    setReviews(data ?? []);
+    const data = await fetchReviewsByTarget(initialWorker.user_id);
+    setReviews(data);
   };
 
   const handleWhatsApp = () => {
-    const num = worker.whatsapp_number.replace(/\D/g, '');
+    const num = (worker.whatsapp_number ?? '').replace(/\D/g, '');
+    if (!num) return;
     Linking.openURL(
       `https://wa.me/57${num}?text=Hola ${worker.full_name}, te encontré en InstaJobs y quisiera consultarte sobre un trabajo.`
     );

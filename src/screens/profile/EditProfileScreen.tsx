@@ -5,8 +5,12 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { supabase } from '@/lib/supabase';
 import { pickAndUploadAvatar, pickAndUploadWorkPhoto } from '@/lib/storage';
+import {
+  fetchWorkerProfileForEdit, updateUser, updateWorkerAvatar,
+  updateWorkerProfileData, updateWorkerPhotos,
+} from '@/services';
+import { isValidColombianPhone, formatPhone } from '@/lib/validation';
 import { useAuth } from '@/hooks/useAuth';
 import { COLORS, CATEGORIES, SHADOW_SM, SHADOW_MD } from '@/constants';
 import { Avatar } from '@/components/UI';
@@ -33,13 +37,9 @@ export function EditProfileScreen({ navigation }: any) {
   const [uploadingWorkPhotoIdx, setUploadingWorkPhotoIdx] = useState<number | null>(null);
 
   useEffect(() => {
-    if (!isWorker) return;
-    supabase
-      .from('worker_profiles')
-      .select('whatsapp_number, trades, bio, experience_years, photos')
-      .eq('user_id', user?.id)
-      .single()
-      .then(({ data }) => {
+    if (!isWorker || !user?.id) return;
+    fetchWorkerProfileForEdit(user.id)
+      .then(data => {
         if (data) {
           setWhatsapp(data.whatsapp_number ?? '');
           setSelectedTrades(data.trades ?? []);
@@ -47,8 +47,9 @@ export function EditProfileScreen({ navigation }: any) {
           setExperience(data.experience_years?.toString() ?? '');
           setWorkPhotos(data.photos ?? []);
         }
-        setLoadingProfile(false);
-      });
+      })
+      .catch(() => {})
+      .finally(() => setLoadingProfile(false));
   }, []);
 
   const toggleTrade = (id: string) =>
@@ -61,10 +62,8 @@ export function EditProfileScreen({ navigation }: any) {
     setUploadingPhoto(true);
     const url = await pickAndUploadAvatar(user.id);
     if (url) {
-      await supabase.from('users').update({ avatar_url: url }).eq('id', user.id);
-      if (isWorker) {
-        await supabase.from('worker_profiles').update({ avatar_url: url }).eq('user_id', user.id);
-      }
+      await updateUser(user.id, { avatar_url: url });
+      if (isWorker) await updateWorkerAvatar(user.id, url);
       setAvatarUrl(url);
       await refreshUser();
     }
@@ -83,7 +82,7 @@ export function EditProfileScreen({ navigation }: any) {
     if (url) {
       const updated = [...workPhotos, url];
       setWorkPhotos(updated);
-      await supabase.from('worker_profiles').update({ photos: updated }).eq('user_id', user.id);
+      await updateWorkerPhotos(user.id, updated);
     }
     setUploadingWorkPhotoIdx(null);
   };
@@ -95,7 +94,7 @@ export function EditProfileScreen({ navigation }: any) {
         text: 'Eliminar', style: 'destructive', onPress: async () => {
           const updated = workPhotos.filter((_, i) => i !== idx);
           setWorkPhotos(updated);
-          await supabase.from('worker_profiles').update({ photos: updated }).eq('user_id', user?.id);
+          if (user) await updateWorkerPhotos(user.id, updated);
         },
       },
     ]);
@@ -110,44 +109,32 @@ export function EditProfileScreen({ navigation }: any) {
       Alert.alert('Selecciona oficios', 'Elige al menos un oficio que ofreces');
       return;
     }
-    setSaving(true);
-
-    const { error: userError } = await supabase
-      .from('users')
-      .update({ full_name: name.trim(), municipality })
-      .eq('id', user?.id);
-
-    if (userError) {
-      Alert.alert('Error', userError.message);
-      setSaving(false);
+    if (isWorker && whatsapp && !isValidColombianPhone(whatsapp)) {
+      Alert.alert('Número inválido', 'El WhatsApp debe tener 10 dígitos y empezar por 3. Ej: 3101234567');
       return;
     }
-
-    if (isWorker) {
-      const { error: wpError } = await supabase
-        .from('worker_profiles')
-        .update({
+    setSaving(true);
+    try {
+      await updateUser(user!.id, { full_name: name.trim(), municipality });
+      if (isWorker) {
+        await updateWorkerProfileData(user!.id, {
           full_name: name.trim(),
           municipality,
-          whatsapp_number: whatsapp.replace(/\D/g, ''),
+          whatsapp_number: formatPhone(whatsapp),
           trades: selectedTrades,
           bio: bio.trim(),
           experience_years: parseInt(experience) || 0,
-        })
-        .eq('user_id', user?.id);
-
-      if (wpError) {
-        Alert.alert('Error', wpError.message);
-        setSaving(false);
-        return;
+        });
       }
+      await refreshUser();
+      Alert.alert('Perfil actualizado', 'Los cambios se guardaron correctamente', [
+        { text: 'OK', onPress: () => navigation.goBack() },
+      ]);
+    } catch (e: any) {
+      Alert.alert('Error', e.message ?? 'No se pudo guardar');
+    } finally {
+      setSaving(false);
     }
-
-    await refreshUser();
-    setSaving(false);
-    Alert.alert('Perfil actualizado', 'Los cambios se guardaron correctamente', [
-      { text: 'OK', onPress: () => navigation.goBack() },
-    ]);
   };
 
   if (loadingProfile) {

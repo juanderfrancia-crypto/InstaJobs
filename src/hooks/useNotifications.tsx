@@ -1,21 +1,25 @@
 import { useEffect, useRef } from 'react';
-import * as Notifications from 'expo-notifications';
 import * as Device from 'expo-device';
 import Constants from 'expo-constants';
 import { Platform } from 'react-native';
-import { supabase } from '@/lib/supabase';
+import { updatePushToken } from '@/services';
 import { useAuth } from '@/hooks/useAuth';
 
-Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldShowAlert: true,
-    shouldPlaySound: true,
-    shouldSetBadge: true,
-  }),
-});
+type NotificationsModule = typeof import('expo-notifications');
+type Subscription = { remove(): void };
+
+async function getNotificationsModule(): Promise<NotificationsModule | null> {
+  try {
+    return await import('expo-notifications');
+  } catch {
+    return null;
+  }
+}
 
 async function registerForPushNotificationsAsync(): Promise<string | null> {
   if (!Device.isDevice) return null;
+  const Notifications = await getNotificationsModule();
+  if (!Notifications) return null;
 
   const { status: existing } = await Notifications.getPermissionsAsync();
   let finalStatus = existing;
@@ -49,34 +53,49 @@ async function registerForPushNotificationsAsync(): Promise<string | null> {
 
 export function useNotifications(navigation: any) {
   const { user } = useAuth();
-  const responseListener = useRef<Notifications.Subscription | null>(null);
+  const responseListener = useRef<Subscription | null>(null);
+
+  useEffect(() => {
+    getNotificationsModule().then(Notifications => {
+      if (!Notifications) return;
+      Notifications.setNotificationHandler({
+        handleNotification: async () => ({
+          shouldShowAlert: true,
+          shouldPlaySound: true,
+          shouldSetBadge: true,
+        }),
+      });
+    });
+  }, []);
 
   useEffect(() => {
     if (!user) return;
 
     registerForPushNotificationsAsync().then(token => {
-      if (token) {
-        supabase.from('users').update({ push_token: token }).eq('id', user.id);
-      }
+      if (token) updatePushToken(user.id, token);
     });
 
-    responseListener.current = Notifications.addNotificationResponseReceivedListener(response => {
-      const data = response.notification.request.content.data as any;
-      if (!data?.screen) return;
-      if (data.screen === 'JobApplications' && data.jobId) {
-        navigation.navigate('JobApplications', {
-          jobId: data.jobId,
-          jobTitle: data.jobTitle ?? '',
-        });
-      } else if (data.screen === 'MyApplications') {
-        navigation.navigate('MyApplications');
-      }
+    let cancelled = false;
+    getNotificationsModule().then(Notifications => {
+      if (!Notifications || cancelled) return;
+      responseListener.current = Notifications.addNotificationResponseReceivedListener(response => {
+        const data = response.notification.request.content.data as any;
+        if (!data?.screen) return;
+        if (data.screen === 'JobApplications' && data.jobId) {
+          navigation.navigate('JobApplications', {
+            jobId: data.jobId,
+            jobTitle: data.jobTitle ?? '',
+          });
+        } else if (data.screen === 'MyApplications') {
+          navigation.navigate('MyApplications');
+        }
+      });
     });
 
     return () => {
-      if (responseListener.current) {
-        Notifications.removeNotificationSubscription(responseListener.current);
-      }
+      cancelled = true;
+      responseListener.current?.remove();
+      responseListener.current = null;
     };
   }, [user?.id]);
 }

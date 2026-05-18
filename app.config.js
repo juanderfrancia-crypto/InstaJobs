@@ -6,21 +6,17 @@ export default {
     slug: 'instajobs',
     version: '1.0.0',
     orientation: 'portrait',
-    icon: './assets/iconoinsta.png',
+    icon: './assets/icon.png',
     userInterfaceStyle: 'light',
     splash: {
       image: './assets/splash.png',
       resizeMode: 'contain',
-      backgroundColor: '#F97316',
+      backgroundColor: '#ffffff',
     },
     assetBundlePatterns: ['**/*'],
-    ios: {
-      supportsTablet: false,
-      bundleIdentifier: IS_DEV ? 'com.instajobs.app.dev' : 'com.instajobs.app',
-    },
     android: {
       adaptiveIcon: {
-        foregroundImage: './assets/iconoinsta.png',
+        foregroundImage: './assets/icon.png',
         backgroundColor: '#F97316',
       },
       package: IS_DEV ? 'com.instajobs.app.dev' : 'com.instajobs.app',
@@ -33,7 +29,7 @@ export default {
         'RECEIVE_BOOT_COMPLETED',
         'VIBRATE',
       ],
-      googleServicesFile: process.env.GOOGLE_SERVICES_JSON ?? './google-services.json',
+      ...(process.env.GOOGLE_SERVICES_JSON ? { googleServicesFile: process.env.GOOGLE_SERVICES_JSON } : {}),
     },
     ios: {
       supportsTablet: false,
@@ -46,7 +42,7 @@ export default {
       [
         'expo-notifications',
         {
-          icon: './assets/iconoinsta.png',
+          icon: './assets/icon.png',
           color: '#F97316',
           defaultChannel: 'default',
           sounds: [],
@@ -59,8 +55,15 @@ export default {
             'Necesitamos tu ubicación para mostrarte trabajadores cercanos.',
         },
       ],
+      [
+        'expo-image-picker',
+        {
+          photosPermission: 'Permite a InstaJobs acceder a tus fotos para subir imágenes de perfil y trabajos.',
+          cameraPermission: 'Permite a InstaJobs usar la cámara para tomar fotos de perfil y trabajos.',
+        },
+      ],
     ],
-    newArchEnabled: false,
+    newArchEnabled: true,
     scheme: 'instajobs',
     extra: {
       supabaseUrl: process.env.SUPABASE_URL,

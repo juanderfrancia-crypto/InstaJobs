@@ -5,8 +5,8 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { supabase } from '@/lib/supabase';
 import { COLORS } from '@/constants';
+import { sendOtp } from '@/services';
 
 export function PhoneScreen({ navigation }: any) {
   const [phone, setPhone] = useState('');
@@ -19,12 +19,13 @@ export function PhoneScreen({ navigation }: any) {
       return;
     }
     setLoading(true);
-    const { error } = await supabase.auth.signInWithOtp({ phone: `+57${cleaned}` });
-    setLoading(false);
-    if (error) {
-      Alert.alert('Error', error.message);
-    } else {
+    try {
+      await sendOtp(cleaned);
       navigation.navigate('OTP', { phone: cleaned });
+    } catch (e: any) {
+      Alert.alert('Error', e?.message ?? 'No se pudo enviar el código');
+    } finally {
+      setLoading(false);
     }
   };
 

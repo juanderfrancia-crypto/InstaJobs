@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Linking } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, Linking, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Avatar, StarRating } from './UI';
 import { COLORS, CATEGORIES, SHADOW_MD, SHADOW_SM } from '@/constants';
@@ -10,13 +10,17 @@ interface WorkerCardProps {
   onPress: () => void;
 }
 
-export function WorkerCard({ worker, onPress }: WorkerCardProps) {
+export const WorkerCard = React.memo(function WorkerCard({ worker, onPress }: WorkerCardProps) {
   const tradeLabels = worker.trades
     .map(t => CATEGORIES.find(c => c.id === t)?.label ?? t)
     .join(' · ');
 
   const handleWhatsApp = () => {
-    const number = worker.whatsapp_number.replace(/\D/g, '');
+    const number = (worker.whatsapp_number ?? '').replace(/\D/g, '');
+    if (!number) {
+      Alert.alert('Sin WhatsApp', `${worker.full_name} no ha registrado su número de WhatsApp.`);
+      return;
+    }
     Linking.openURL(`https://wa.me/57${number}?text=Hola ${worker.full_name}, te encontré en InstaJobs y quisiera consultarte sobre un trabajo.`);
   };
 
@@ -73,7 +77,7 @@ export function WorkerCard({ worker, onPress }: WorkerCardProps) {
       </View>
     </TouchableOpacity>
   );
-}
+});
 
 const styles = StyleSheet.create({
   card: {

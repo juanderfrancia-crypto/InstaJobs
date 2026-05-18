@@ -1,5 +1,5 @@
 import React from 'react';
-import { StatusBar } from 'react-native';
+import { StatusBar, View, Text, ScrollView, StyleSheet } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
@@ -32,10 +32,39 @@ import { MyApplicationsScreen } from '@/screens/profile/MyApplicationsScreen';
 
 const Stack = createNativeStackNavigator();
 
+class ErrorBoundary extends React.Component<
+  { children: React.ReactNode },
+  { error: Error | null }
+> {
+  state = { error: null };
+  static getDerivedStateFromError(error: Error) { return { error }; }
+  render() {
+    if (this.state.error) {
+      const err = this.state.error as Error;
+      return (
+        <View style={eb.container}>
+          <Text style={eb.title}>Error al iniciar</Text>
+          <ScrollView>
+            <Text style={eb.msg}>{err.message}</Text>
+            <Text style={eb.stack}>{err.stack}</Text>
+          </ScrollView>
+        </View>
+      );
+    }
+    return this.props.children;
+  }
+}
+const eb = StyleSheet.create({
+  container: { flex: 1, backgroundColor: '#1a1a1a', padding: 20, paddingTop: 60 },
+  title: { color: '#FF6B6B', fontSize: 18, fontWeight: '700', marginBottom: 12 },
+  msg: { color: '#fff', fontSize: 14, marginBottom: 12 },
+  stack: { color: '#aaa', fontSize: 11, lineHeight: 16 },
+});
+
 function RootNavigator() {
   const { session, loading, isNewUser } = useAuth();
 
-  if (loading) return null;
+  if (loading) return <View style={{ flex: 1, backgroundColor: '#ffffff' }} />;
 
   return (
     <Stack.Navigator screenOptions={{ headerShown: false }}>
@@ -77,13 +106,15 @@ function RootNavigator() {
 
 export default function App() {
   return (
-    <SafeAreaProvider>
-      <StatusBar translucent backgroundColor="transparent" barStyle="dark-content" />
-      <AuthProvider>
-        <NavigationContainer>
-          <RootNavigator />
-        </NavigationContainer>
-      </AuthProvider>
-    </SafeAreaProvider>
+    <ErrorBoundary>
+      <SafeAreaProvider>
+        <StatusBar translucent backgroundColor="transparent" barStyle="dark-content" />
+        <AuthProvider>
+          <NavigationContainer>
+            <RootNavigator />
+          </NavigationContainer>
+        </AuthProvider>
+      </SafeAreaProvider>
+    </ErrorBoundary>
   );
 }

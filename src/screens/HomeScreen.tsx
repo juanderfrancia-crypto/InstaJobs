@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity,
   StyleSheet, TextInput, RefreshControl, StatusBar,
@@ -6,9 +6,10 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
-import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/hooks/useAuth';
 import { COLORS, CATEGORIES, SHADOW_SM, SHADOW_MD } from '@/constants';
+import { fetchOpenJobs, fetchAvailableWorkers, fetchAppliedJobIds } from '@/services';
+import { useRealtimeChannel } from '@/hooks/useRealtimeChannel';
 import { WorkerCard } from '@/components/WorkerCard';
 import { JobCard } from '@/components/JobCard';
 import { WorkerProfile, JobPost } from '@/types';
@@ -23,74 +24,68 @@ export function HomeScreen({ navigation }: any) {
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [networkError, setNetworkError] = useState(false);
 
   const isWorker = user?.role === 'worker';
 
-  const filteredWorkers = searchQuery.trim()
-    ? workers.filter(w => {
-        const q = searchQuery.toLowerCase();
-        const nameMatch = w.full_name.toLowerCase().includes(q);
-        const tradeMatch = w.trades.some(t => {
-          const label = CATEGORIES.find(c => c.id === t)?.label ?? t;
-          return label.toLowerCase().includes(q);
+  const filteredWorkers = useMemo(() => {
+    if (!searchQuery.trim()) return workers;
+    const q = searchQuery.toLowerCase();
+    return workers.filter(w => {
+      const nameMatch = w.full_name.toLowerCase().includes(q);
+      const tradeMatch = w.trades.some(t => {
+        const label = CATEGORIES.find(c => c.id === t)?.label ?? t;
+        return label.toLowerCase().includes(q);
+      });
+      return nameMatch || tradeMatch;
+    });
+  }, [workers, searchQuery]);
+
+  const filteredJobs = useMemo(() => {
+    if (!searchQuery.trim()) return jobs;
+    const q = searchQuery.toLowerCase();
+    return jobs.filter(j =>
+      j.title.toLowerCase().includes(q) || j.description.toLowerCase().includes(q)
+    );
+  }, [jobs, searchQuery]);
+
+  const loadData = useCallback(async () => {
+    setNetworkError(false);
+    try {
+      if (!isWorker) {
+        const result = await fetchAvailableWorkers({
+          municipality: user?.municipality ?? '',
+          category: activeCategory ?? undefined,
         });
-        return nameMatch || tradeMatch;
-      })
-    : workers;
-
-  const filteredJobs = searchQuery.trim()
-    ? jobs.filter(j => {
-        const q = searchQuery.toLowerCase();
-        return (
-          j.title.toLowerCase().includes(q) ||
-          j.description.toLowerCase().includes(q)
-        );
-      })
-    : jobs;
-
-  useEffect(() => { if (user?.municipality) loadData(); }, [activeCategory, user?.municipality, user?.role]);
-
-  const loadData = async () => {
-    if (!isWorker) {
-      let query = supabase
-        .from('worker_profiles').select('*')
-        .eq('municipality', user?.municipality ?? '')
-        .eq('available', true)
-        .order('membership_tier', { ascending: false })
-        .limit(10);
-      if (activeCategory) query = query.contains('trades', [activeCategory]);
-      const { data } = await query;
-      setWorkers(data ?? []);
-    } else {
-      let query = supabase
-        .from('job_posts').select('*, client:users(full_name, municipality)')
-        .eq('municipality', user?.municipality ?? '')
-        .eq('status', 'open')
-        .order('created_at', { ascending: false })
-        .limit(20);
-      if (activeCategory) query = query.eq('trade_category', activeCategory);
-      const { data } = await query;
-      setJobs(data ?? []);
-
-      if (data?.length) {
-        const jobIds = data.map((j: any) => j.id);
-        const { data: apps } = await supabase
-          .from('job_applications')
-          .select('job_id')
-          .eq('worker_id', user?.id)
-          .in('job_id', jobIds);
-        setAppliedJobIds(new Set((apps ?? []).map((a: any) => a.job_id)));
+        setWorkers(result.data);
       } else {
-        setAppliedJobIds(new Set());
+        const result = await fetchOpenJobs({
+          municipality: user?.municipality ?? '',
+          category: activeCategory ?? undefined,
+        });
+        setJobs(result.data);
+        if (result.data.length && user?.id) {
+          const ids = await fetchAppliedJobIds(user.id, result.data.map(j => j.id));
+          setAppliedJobIds(ids);
+        } else {
+          setAppliedJobIds(new Set());
+        }
       }
+    } catch {
+      setNetworkError(true);
     }
-  };
+  }, [isWorker, user?.municipality, user?.id, activeCategory]);
 
-  const onRefresh = async () => {
+  const onRefresh = useCallback(async () => {
     setRefreshing(true);
     await loadData();
     setRefreshing(false);
-  };
+  }, [loadData]);
+
+  useEffect(() => { if (user?.municipality) loadData(); }, [loadData, user?.municipality]);
+
+  // Trabajadores ven nuevos trabajos en tiempo real
+  useRealtimeChannel('home_job_posts', 'job_posts', 'INSERT', loadData);
 
   return (
     <View style={styles.container}>
@@ -198,40 +193,56 @@ export function HomeScreen({ navigation }: any) {
         </View>
 
         <View style={styles.list}>
-          {isWorker
-            ? filteredJobs.map(job => (
-                <JobCard
-                  key={job.id} job={job}
-                  onPress={() => navigation.navigate('JobDetail', { job })}
-                  showApply
-                  applied={appliedJobIds.has(job.id)}
-                  onApply={() => navigation.navigate('JobDetail', { job })}
-                />
-              ))
-            : filteredWorkers.map(worker => (
-                <WorkerCard
-                  key={worker.id} worker={worker}
-                  onPress={() => navigation.navigate('WorkerProfile', { worker })}
-                />
-              ))
-          }
-
-          {((isWorker && filteredJobs.length === 0) || (!isWorker && filteredWorkers.length === 0)) && (
+          {networkError ? (
             <View style={styles.empty}>
               <View style={styles.emptyIcon}>
-                <Ionicons name="search-outline" size={32} color={COLORS.textTertiary} />
+                <Ionicons name="cloud-offline-outline" size={32} color={COLORS.textTertiary} />
               </View>
-              <Text style={styles.emptyTitle}>
-                {searchQuery.trim()
-                  ? 'Sin resultados'
-                  : isWorker ? 'No hay trabajos disponibles' : 'No hay trabajadores cerca'}
-              </Text>
-              <Text style={styles.emptyText}>
-                {searchQuery.trim()
-                  ? 'Intenta con otro término de búsqueda'
-                  : 'Prueba con otra categoría o municipio'}
-              </Text>
+              <Text style={styles.emptyTitle}>Sin conexión</Text>
+              <Text style={styles.emptyText}>Verifica tu internet e intenta de nuevo</Text>
+              <TouchableOpacity style={styles.retryBtn} onPress={loadData} activeOpacity={0.8}>
+                <Ionicons name="refresh-outline" size={15} color={COLORS.primary} />
+                <Text style={styles.retryText}>Reintentar</Text>
+              </TouchableOpacity>
             </View>
+          ) : (
+            <>
+              {isWorker
+                ? filteredJobs.map(job => (
+                    <JobCard
+                      key={job.id} job={job}
+                      onPress={() => navigation.navigate('JobDetail', { job })}
+                      showApply
+                      applied={appliedJobIds.has(job.id)}
+                      onApply={() => navigation.navigate('JobDetail', { job })}
+                    />
+                  ))
+                : filteredWorkers.map(worker => (
+                    <WorkerCard
+                      key={worker.id} worker={worker}
+                      onPress={() => navigation.navigate('WorkerProfile', { worker })}
+                    />
+                  ))
+              }
+
+              {((isWorker && filteredJobs.length === 0) || (!isWorker && filteredWorkers.length === 0)) && (
+                <View style={styles.empty}>
+                  <View style={styles.emptyIcon}>
+                    <Ionicons name="search-outline" size={32} color={COLORS.textTertiary} />
+                  </View>
+                  <Text style={styles.emptyTitle}>
+                    {searchQuery.trim()
+                      ? 'Sin resultados'
+                      : isWorker ? 'No hay trabajos disponibles' : 'No hay trabajadores cerca'}
+                  </Text>
+                  <Text style={styles.emptyText}>
+                    {searchQuery.trim()
+                      ? 'Intenta con otro término de búsqueda'
+                      : 'Prueba con otra categoría o municipio'}
+                  </Text>
+                </View>
+              )}
+            </>
           )}
         </View>
       </ScrollView>
@@ -325,4 +336,11 @@ const styles = StyleSheet.create({
   },
   emptyTitle: { fontSize: 15, fontWeight: '600', color: COLORS.textSecondary, marginBottom: 4 },
   emptyText: { fontSize: 13, color: COLORS.textTertiary },
+  retryBtn: {
+    flexDirection: 'row', alignItems: 'center', gap: 6,
+    marginTop: 16, paddingHorizontal: 20, paddingVertical: 10,
+    borderRadius: 20, borderWidth: 1.5, borderColor: COLORS.primary,
+    backgroundColor: COLORS.primaryLight,
+  },
+  retryText: { fontSize: 13, fontWeight: '600', color: COLORS.primary },
 });

@@ -2,13 +2,14 @@ import React, { useState, useEffect } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity,
   StyleSheet, Alert, Switch, StatusBar, ActivityIndicator,
+  Image, Dimensions,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '@/hooks/useAuth';
-import { supabase } from '@/lib/supabase';
 import { pickAndUploadAvatar } from '@/lib/storage';
+import { fetchWorkerAvailability, updateWorkerAvailability, updateWorkerAvatar, updateUser } from '@/services';
 import { COLORS, SHADOW_MD, SHADOW_SM } from '@/constants';
 import { Avatar, Badge, Divider } from '@/components/UI';
 
@@ -18,6 +19,10 @@ type MenuItem = {
   onPress: () => void;
   highlight?: boolean;
 };
+
+const PHOTO_SIZE = Math.floor(Dimensions.get('window').width / 2) - 24;
+const AVATAR_COLORS = ['#FED7AA', '#BFDBFE', '#BBF7D0', '#DDD6FE', '#FDE68A'];
+const AVATAR_TEXT   = ['#9A3412', '#1E40AF', '#14532D', '#5B21B6', '#92400E'];
 
 export function ProfileScreen({ navigation }: any) {
   const { user, signOut, refreshUser } = useAuth();
@@ -29,17 +34,12 @@ export function ProfileScreen({ navigation }: any) {
 
   useEffect(() => {
     if (!isWorker || !user) return;
-    supabase
-      .from('worker_profiles')
-      .select('available')
-      .eq('user_id', user.id)
-      .single()
-      .then(({ data }) => { if (data) setAvailable(data.available); });
+    fetchWorkerAvailability(user.id).then(val => setAvailable(val));
   }, [user, isWorker]);
 
   const toggleAvailable = async (val: boolean) => {
     setAvailable(val);
-    await supabase.from('worker_profiles').update({ available: val }).eq('user_id', user?.id);
+    await updateWorkerAvailability(user?.id ?? '', val);
   };
 
   const handleChangePhoto = async () => {
@@ -47,10 +47,8 @@ export function ProfileScreen({ navigation }: any) {
     setUploadingPhoto(true);
     const url = await pickAndUploadAvatar(user.id);
     if (url) {
-      await supabase.from('users').update({ avatar_url: url }).eq('id', user.id);
-      if (isWorker) {
-        await supabase.from('worker_profiles').update({ avatar_url: url }).eq('user_id', user.id);
-      }
+      await updateUser(user.id, { avatar_url: url });
+      if (isWorker) await updateWorkerAvatar(user.id, url);
       await refreshUser();
     }
     setUploadingPhoto(false);
@@ -135,28 +133,46 @@ export function ProfileScreen({ navigation }: any) {
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: tabBarHeight }}>
         <View style={styles.profileCard}>
-          {uploadingPhoto ? (
-            <View style={styles.avatarLoading}>
-              <ActivityIndicator size="small" color={COLORS.primary} />
+          <TouchableOpacity
+            style={styles.avatarHalf}
+            onPress={handleChangePhoto}
+            activeOpacity={0.85}
+            disabled={uploadingPhoto}
+          >
+            <View style={styles.squarePhoto}>
+              {uploadingPhoto ? (
+                <ActivityIndicator size="large" color={COLORS.primary} />
+              ) : user?.avatar_url ? (
+                <Image
+                  source={{ uri: user.avatar_url }}
+                  style={styles.squarePhotoImg}
+                  resizeMode="cover"
+                />
+              ) : (
+                <View style={[styles.squarePhotoImg, { backgroundColor: AVATAR_COLORS[0] }]}>
+                  <Text style={[styles.squareInitials, { color: AVATAR_TEXT[0] }]}>
+                    {(user?.full_name ?? 'U').split(' ').slice(0, 2).map(n => n[0]).join('').toUpperCase()}
+                  </Text>
+                </View>
+              )}
+              <View style={styles.cameraBtn}>
+                <Ionicons name="camera" size={14} color="#fff" />
+              </View>
             </View>
-          ) : (
-            <Avatar
-              name={user?.full_name ?? 'U'}
-              size={68}
-              avatarUrl={user?.avatar_url}
-              onPress={handleChangePhoto}
-            />
-          )}
-          <View style={styles.profileInfo}>
-            <Text style={styles.profileName}>{user?.full_name}</Text>
+          </TouchableOpacity>
+
+          <View style={styles.dividerV} />
+
+          <View style={styles.infoHalf}>
+            <Text style={styles.profileName} numberOfLines={2}>{user?.full_name}</Text>
             <View style={styles.muniRow}>
-              <Ionicons name="location-outline" size={13} color={COLORS.textSecondary} />
-              <Text style={styles.profileMuni}>{user?.municipality}</Text>
+              <Ionicons name="location-outline" size={12} color={COLORS.textSecondary} />
+              <Text style={styles.profileMuni} numberOfLines={1}>{user?.municipality}</Text>
             </View>
             <View style={styles.roleChip}>
               <Ionicons
                 name={isWorker ? 'hammer-outline' : 'person-outline'}
-                size={13}
+                size={12}
                 color={isWorker ? COLORS.primaryDark : '#1D4ED8'}
               />
               <Text style={[styles.roleChipText, { color: isWorker ? COLORS.primaryDark : '#1D4ED8' }]}>
@@ -259,29 +275,69 @@ const styles = StyleSheet.create({
   },
   headerTitle: { fontSize: 20, fontWeight: '800', color: '#fff', letterSpacing: -0.3 },
   profileCard: {
-    backgroundColor: COLORS.card, flexDirection: 'row', gap: 14,
-    padding: 16, borderBottomWidth: 0.5, borderBottomColor: COLORS.border,
-    alignItems: 'center',
+    backgroundColor: COLORS.card,
+    flexDirection: 'row',
+    borderBottomWidth: 0.5, borderBottomColor: COLORS.border,
     ...SHADOW_SM,
   },
-  avatarLoading: {
-    width: 68, height: 68, borderRadius: 34,
-    backgroundColor: COLORS.borderLight,
-    alignItems: 'center', justifyContent: 'center',
+  avatarHalf: {
+    flex: 1,
+    alignItems: 'flex-end',
+    justifyContent: 'center',
+    paddingVertical: 14,
+    paddingLeft: 8,
+    paddingRight: 10,
   },
-  profileInfo: { flex: 1 },
-  profileName: { fontSize: 17, fontWeight: '700', color: COLORS.text, marginBottom: 3 },
+  squarePhoto: {
+    width: PHOTO_SIZE,
+    height: PHOTO_SIZE,
+    borderRadius: 16,
+    backgroundColor: COLORS.borderLight,
+    overflow: 'hidden',
+    alignItems: 'center',
+    justifyContent: 'center',
+    position: 'relative',
+  },
+  squarePhotoImg: {
+    width: PHOTO_SIZE,
+    height: PHOTO_SIZE,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  squareInitials: {
+    fontSize: PHOTO_SIZE * 0.32,
+    fontWeight: '700',
+  },
+  cameraBtn: {
+    position: 'absolute', bottom: 8, right: 8,
+    width: 30, height: 30, borderRadius: 15,
+    backgroundColor: COLORS.primary,
+    alignItems: 'center', justifyContent: 'center',
+    borderWidth: 2, borderColor: '#fff',
+  },
+  dividerV: {
+    width: 0.5, backgroundColor: COLORS.border,
+    marginVertical: 16,
+  },
+  infoHalf: {
+    flex: 1,
+    justifyContent: 'center',
+    paddingVertical: 20,
+    paddingHorizontal: 14,
+  },
+  profileName: { fontSize: 15, fontWeight: '700', color: COLORS.text, marginBottom: 4 },
   muniRow: { flexDirection: 'row', alignItems: 'center', gap: 3, marginBottom: 8 },
-  profileMuni: { fontSize: 13, color: COLORS.textSecondary },
+  profileMuni: { fontSize: 12, color: COLORS.textSecondary, flex: 1 },
   roleChip: {
-    flexDirection: 'row', alignItems: 'center', gap: 5,
+    flexDirection: 'row', alignItems: 'center', gap: 4,
     alignSelf: 'flex-start',
-    paddingHorizontal: 10, paddingVertical: 4,
+    paddingHorizontal: 9, paddingVertical: 4,
     borderRadius: 20, marginBottom: 8,
     backgroundColor: COLORS.primaryLight,
   },
-  roleChipText: { fontSize: 12, fontWeight: '700' },
-  badgesRow: { flexDirection: 'row', gap: 6, flexWrap: 'wrap' },
+  roleChipText: { fontSize: 11, fontWeight: '700' },
+  badgesRow: { flexDirection: 'row', gap: 5, flexWrap: 'wrap' },
   availCard: {
     backgroundColor: COLORS.card, flexDirection: 'row', alignItems: 'center',
     padding: 16, borderBottomWidth: 0.5, borderBottomColor: COLORS.border, gap: 12,

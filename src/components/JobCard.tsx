@@ -34,7 +34,7 @@ const timeAgo = (dateStr: string) => {
   return `hace ${Math.floor(hrs / 24)} días`;
 };
 
-export function JobCard({ job, onPress, showApply, onApply, applied }: JobCardProps) {
+export const JobCard = React.memo(function JobCard({ job, onPress, showApply, onApply, applied }: JobCardProps) {
   const category = CATEGORIES.find(c => c.id === job.trade_category);
   const urgencyBase = URGENCY_CONFIG[job.urgency as UrgencyKey] ?? URGENCY_CONFIG.flexible;
   const detail = (job as any).urgency_detail;
@@ -113,7 +113,7 @@ export function JobCard({ job, onPress, showApply, onApply, applied }: JobCardPr
       )}
     </TouchableOpacity>
   );
-}
+});
 
 const styles = StyleSheet.create({
   card: {

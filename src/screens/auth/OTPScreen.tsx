@@ -5,11 +5,11 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { supabase } from '@/lib/supabase';
 import { COLORS, SHADOW_SM } from '@/constants';
+import { verifyOtp, sendOtp } from '@/services';
 
 export function OTPScreen({ navigation, route }: any) {
-  const { phone } = route.params;
+  const { phone } = (route.params ?? {}) as { phone?: string };
   const [code, setCode] = useState(['', '', '', '', '', '']);
   const [loading, setLoading] = useState(false);
   const inputs = useRef<TextInput[]>([]);
@@ -31,24 +31,28 @@ export function OTPScreen({ navigation, route }: any) {
   };
 
   const verify = async (otp: string) => {
+    if (!phone) return;
     setLoading(true);
-    const { error } = await supabase.auth.verifyOtp({
-      phone: `+57${phone}`,
-      token: otp,
-      type: 'sms',
-    });
-    setLoading(false);
-    if (error) {
+    try {
+      await verifyOtp(phone, otp);
+      // AuthProvider detecta si es usuario nuevo y navega automáticamente
+    } catch {
       Alert.alert('Código incorrecto', 'Verifica el código e intenta de nuevo');
       setCode(['', '', '', '', '', '']);
       inputs.current[0]?.focus();
+    } finally {
+      setLoading(false);
     }
-    // AuthProvider detecta si es usuario nuevo y navega automáticamente
   };
 
   const handleResend = async () => {
-    await supabase.auth.signInWithOtp({ phone: `+57${phone}` });
-    Alert.alert('Código reenviado', 'Revisa tus mensajes SMS');
+    if (!phone) return;
+    try {
+      await sendOtp(phone);
+      Alert.alert('Código reenviado', 'Revisa tus mensajes SMS');
+    } catch {
+      Alert.alert('Error', 'No se pudo reenviar el código');
+    }
   };
 
   const isComplete = code.every(d => d !== '');

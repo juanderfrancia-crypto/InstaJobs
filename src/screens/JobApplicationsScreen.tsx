@@ -5,8 +5,12 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { supabase } from '@/lib/supabase';
 import { sendPushNotification } from '@/lib/notifications';
+import {
+  fetchJobById, completeJob,
+  fetchJobApplicationsWithWorkers, acceptApplication, rejectApplication,
+} from '@/services';
+import { useRealtimeChannel } from '@/hooks/useRealtimeChannel';
 import { COLORS, CATEGORIES, SHADOW_SM, SHADOW_MD } from '@/constants';
 import { Avatar, Badge, StarRating } from '@/components/UI';
 
@@ -18,7 +22,7 @@ const JOB_STATUS_LABEL: Record<string, string> = {
 };
 
 export function JobApplicationsScreen({ route, navigation }: any) {
-  const { jobId } = route.params as { jobId: string };
+  const { jobId = '' } = (route.params ?? {}) as { jobId?: string };
   const insets = useSafeAreaInsets();
 
   const [job, setJob]                   = useState<any>(null);
@@ -28,38 +32,20 @@ export function JobApplicationsScreen({ route, navigation }: any) {
   const [actionLoading, setActionLoading] = useState<string | null>(null);
 
   const load = useCallback(async () => {
-    const [{ data: jobData }, { data: appData }] = await Promise.all([
-      supabase
-        .from('job_posts')
-        .select('*')
-        .eq('id', jobId)
-        .single(),
-      supabase
-        .from('job_applications')
-        .select('id, status, message, created_at, worker_id')
-        .eq('job_id', jobId)
-        .order('created_at', { ascending: false }),
+    const [jobData, appsWithWorkers] = await Promise.all([
+      fetchJobById(jobId),
+      fetchJobApplicationsWithWorkers(jobId),
     ]);
-
     setJob(jobData);
-
-    if (appData?.length) {
-      const workerIds = [...new Set(appData.map((a: any) => a.worker_id))];
-      const { data: workerData } = await supabase
-        .from('worker_profiles')
-        .select('user_id, full_name, trades, municipality, avatar_url, rating, reviews_count, whatsapp_number')
-        .in('user_id', workerIds);
-
-      const workerMap = Object.fromEntries((workerData ?? []).map((w: any) => [w.user_id, w]));
-      setApplications(appData.map((a: any) => ({ ...a, worker: workerMap[a.worker_id] ?? null })));
-    } else {
-      setApplications([]);
-    }
+    setApplications(appsWithWorkers);
   }, [jobId]);
 
   useEffect(() => {
     load().finally(() => setLoading(false));
   }, [load]);
+
+  // Clientes ven nuevas postulaciones en tiempo real
+  useRealtimeChannel(`job_apps_${jobId}`, 'job_applications', 'INSERT', load, `job_id=eq.${jobId}`);
 
   const onRefresh = async () => {
     setRefreshing(true);
@@ -78,10 +64,13 @@ export function JobApplicationsScreen({ route, navigation }: any) {
           onPress: async () => {
             setActionLoading(appId);
             const app = applications.find(a => a.id === appId);
-            await Promise.all([
-              supabase.from('job_applications').update({ status: 'accepted' }).eq('id', appId),
-              supabase.from('job_posts').update({ status: 'in_progress' }).eq('id', jobId),
-            ]);
+            try {
+              await acceptApplication(appId, jobId);
+            } catch (e: any) {
+              Alert.alert('No disponible', e.message ?? 'No se pudo contratar al trabajador');
+              setActionLoading(null);
+              return;
+            }
             if (app?.worker_id) {
               sendPushNotification(
                 app.worker_id,
@@ -110,7 +99,7 @@ export function JobApplicationsScreen({ route, navigation }: any) {
           onPress: async () => {
             setActionLoading(appId);
             const app = applications.find(a => a.id === appId);
-            await supabase.from('job_applications').update({ status: 'rejected' }).eq('id', appId);
+            await rejectApplication(appId);
             if (app?.worker_id) {
               sendPushNotification(
                 app.worker_id,
@@ -129,6 +118,10 @@ export function JobApplicationsScreen({ route, navigation }: any) {
 
   const handleComplete = () => {
     const accepted = applications.find(a => a.status === 'accepted');
+    if (!accepted) {
+      Alert.alert('Sin trabajador asignado', 'Debes contratar a un trabajador antes de completar el trabajo.');
+      return;
+    }
     Alert.alert(
       'Marcar como completado',
       '¿El trabajo ya fue realizado? Podrás dejar una reseña al trabajador.',
@@ -137,7 +130,7 @@ export function JobApplicationsScreen({ route, navigation }: any) {
         {
           text: 'Completar',
           onPress: async () => {
-            await supabase.from('job_posts').update({ status: 'completed' }).eq('id', jobId);
+            await completeJob(jobId);
             setJob((prev: any) => ({ ...prev, status: 'completed' }));
             if (accepted?.worker_id) {
               sendPushNotification(
@@ -150,7 +143,7 @@ export function JobApplicationsScreen({ route, navigation }: any) {
             if (accepted?.worker) {
               navigation.navigate('Review', {
                 jobId,
-                jobTitle: job.title,
+                jobTitle: job?.title ?? '',
                 reviewedId: accepted.worker.user_id,
                 reviewedName: accepted.worker.full_name,
               });

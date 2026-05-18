@@ -1,18 +1,18 @@
 import React, { useState } from 'react';
 import {
   View, Text, TextInput, ScrollView, TouchableOpacity,
-  StyleSheet, StatusBar,
+  StyleSheet, StatusBar, ActivityIndicator,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
-import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/hooks/useAuth';
 import { COLORS, CATEGORIES, SHADOW_SM } from '@/constants';
 import { MunicipioSearch } from '@/components/MunicipioSearch';
 import { WorkerCard } from '@/components/WorkerCard';
 import { JobCard } from '@/components/JobCard';
 import { WorkerProfile, JobPost } from '@/types';
+import { fetchOpenJobs, fetchAvailableWorkers, fetchAppliedJobIds } from '@/services';
 
 export function SearchScreen({ navigation }: any) {
   const { user } = useAuth();
@@ -20,63 +20,70 @@ export function SearchScreen({ navigation }: any) {
   const tabBarHeight = useBottomTabBarHeight();
   const isWorker = user?.role === 'worker';
 
-  const [query, setQuery] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState('');
+  const [query, setQuery]                         = useState('');
+  const [selectedCategory, setSelectedCategory]   = useState('');
   const [selectedMunicipality, setSelectedMunicipality] = useState(user?.municipality ?? '');
-  const [workers, setWorkers] = useState<WorkerProfile[]>([]);
-  const [jobs, setJobs] = useState<JobPost[]>([]);
-  const [appliedJobIds, setAppliedJobIds] = useState<Set<string>>(new Set());
-  const [searched, setSearched] = useState(false);
-  const [loading, setLoading] = useState(false);
+  const [workers, setWorkers]                     = useState<WorkerProfile[]>([]);
+  const [jobs, setJobs]                           = useState<JobPost[]>([]);
+  const [appliedJobIds, setAppliedJobIds]         = useState<Set<string>>(new Set());
+  const [searched, setSearched]                   = useState(false);
+  const [loading, setLoading]                     = useState(false);
+  const [loadingMore, setLoadingMore]             = useState(false);
+  const [networkError, setNetworkError]           = useState(false);
+  const [page, setPage]                           = useState(0);
+  const [hasMore, setHasMore]                     = useState(false);
+  const [totalCount, setTotalCount]               = useState(0);
 
-  const handleSearch = async () => {
-    setLoading(true);
+  const doSearch = async (reset: boolean) => {
+    const currentPage = reset ? 0 : page;
+    reset ? setLoading(true) : setLoadingMore(true);
+    setNetworkError(false);
+    try {
+      if (isWorker) {
+        const result = await fetchOpenJobs({
+          municipality: selectedMunicipality,
+          category:     selectedCategory,
+          query,
+          page:         currentPage,
+        });
+        const newJobs = reset ? result.data : [...jobs, ...result.data];
+        setJobs(newJobs);
+        setHasMore(result.hasMore);
+        setTotalCount(result.count);
 
-    if (isWorker) {
-      let q = supabase
-        .from('job_posts')
-        .select('*, client:users(full_name, municipality)')
-        .eq('status', 'open')
-        .order('created_at', { ascending: false })
-        .limit(30);
-      if (selectedMunicipality) q = q.eq('municipality', selectedMunicipality);
-      if (selectedCategory) q = q.eq('trade_category', selectedCategory);
-      if (query.trim()) q = q.ilike('title', `%${query.trim()}%`);
-      const { data } = await q;
-      setJobs(data ?? []);
-
-      if (data?.length) {
-        const jobIds = data.map((j: any) => j.id);
-        const { data: apps } = await supabase
-          .from('job_applications')
-          .select('job_id')
-          .eq('worker_id', user?.id)
-          .in('job_id', jobIds);
-        setAppliedJobIds(new Set((apps ?? []).map((a: any) => a.job_id)));
+        if (result.data.length && user?.id) {
+          const newIds = await fetchAppliedJobIds(user.id, result.data.map(j => j.id));
+          setAppliedJobIds(prev => reset ? newIds : new Set([...prev, ...newIds]));
+        } else if (reset) {
+          setAppliedJobIds(new Set());
+        }
       } else {
-        setAppliedJobIds(new Set());
+        const result = await fetchAvailableWorkers({
+          municipality: selectedMunicipality,
+          category:     selectedCategory,
+          query,
+          page:         currentPage,
+        });
+        setWorkers(prev => reset ? result.data : [...prev, ...result.data]);
+        setHasMore(result.hasMore);
+        setTotalCount(result.count);
       }
-    } else {
-      let q = supabase
-        .from('worker_profiles')
-        .select('*')
-        .eq('available', true)
-        .order('membership_tier', { ascending: false })
-        .limit(30);
-      if (selectedMunicipality) q = q.eq('municipality', selectedMunicipality);
-      if (selectedCategory) q = q.contains('trades', [selectedCategory]);
-      if (query.trim()) q = q.ilike('full_name', `%${query.trim()}%`);
-      const { data } = await q;
-      setWorkers(data ?? []);
-    }
 
-    setSearched(true);
-    setLoading(false);
+      setPage(reset ? 1 : currentPage + 1);
+      setSearched(true);
+    } catch {
+      setNetworkError(true);
+    } finally {
+      reset ? setLoading(false) : setLoadingMore(false);
+    }
   };
 
+  const handleSearch   = () => doSearch(true);
+  const handleLoadMore = () => doSearch(false);
+
   const resultCount = isWorker ? jobs.length : workers.length;
-  const hasResults = searched && resultCount > 0;
-  const isEmpty = searched && resultCount === 0;
+  const hasResults  = searched && resultCount > 0;
+  const isEmpty     = searched && resultCount === 0;
 
   return (
     <View style={styles.container}>
@@ -169,15 +176,32 @@ export function SearchScreen({ navigation }: any) {
         </TouchableOpacity>
       </View>
 
-      <ScrollView style={styles.results} contentContainerStyle={[styles.resultsContent, { paddingBottom: tabBarHeight }]}>
+      <ScrollView
+        style={styles.results}
+        contentContainerStyle={[styles.resultsContent, { paddingBottom: tabBarHeight }]}
+      >
         {hasResults && (
           <Text style={styles.resultsCount}>
-            {resultCount} resultado{resultCount !== 1 ? 's' : ''}
-            {selectedMunicipality ? ` en ${selectedMunicipality}` : ' en todos los municipios'}
+            {resultCount}{hasMore ? ` de ${totalCount}` : ''} resultado{totalCount !== 1 ? 's' : ''}
+            {selectedMunicipality ? ` en ${selectedMunicipality}` : ''}
           </Text>
         )}
 
-        {isEmpty && (
+        {networkError && (
+          <View style={styles.empty}>
+            <View style={styles.emptyIcon}>
+              <Ionicons name="cloud-offline-outline" size={30} color={COLORS.textTertiary} />
+            </View>
+            <Text style={styles.emptyTitle}>Sin conexión</Text>
+            <Text style={styles.emptyText}>Verifica tu internet e intenta de nuevo</Text>
+            <TouchableOpacity style={styles.retryBtn} onPress={handleSearch} activeOpacity={0.8}>
+              <Ionicons name="refresh-outline" size={15} color={COLORS.primary} />
+              <Text style={styles.retryText}>Reintentar</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+
+        {!networkError && isEmpty && (
           <View style={styles.empty}>
             <View style={styles.emptyIcon}>
               <Ionicons name="search-outline" size={30} color={COLORS.textTertiary} />
@@ -187,7 +211,7 @@ export function SearchScreen({ navigation }: any) {
           </View>
         )}
 
-        {!searched && (
+        {!networkError && !searched && (
           <View style={styles.empty}>
             <View style={styles.emptyIcon}>
               <Ionicons
@@ -199,9 +223,7 @@ export function SearchScreen({ navigation }: any) {
             <Text style={styles.emptyTitle}>
               {isWorker ? 'Encuentra trabajos' : 'Encuentra trabajadores'}
             </Text>
-            <Text style={styles.emptyText}>
-              Usa los filtros de arriba y toca Buscar
-            </Text>
+            <Text style={styles.emptyText}>Usa los filtros de arriba y toca Buscar</Text>
           </View>
         )}
 
@@ -224,6 +246,26 @@ export function SearchScreen({ navigation }: any) {
               />
             ))
         }
+
+        {hasMore && !loading && (
+          <TouchableOpacity
+            style={[styles.loadMoreBtn, loadingMore && { opacity: 0.7 }]}
+            onPress={handleLoadMore}
+            disabled={loadingMore}
+            activeOpacity={0.85}
+          >
+            {loadingMore ? (
+              <ActivityIndicator size="small" color={COLORS.primary} />
+            ) : (
+              <>
+                <Ionicons name="chevron-down" size={16} color={COLORS.primary} />
+                <Text style={styles.loadMoreText}>
+                  Cargar más ({totalCount - resultCount} restantes)
+                </Text>
+              </>
+            )}
+          </TouchableOpacity>
+        )}
       </ScrollView>
     </View>
   );
@@ -292,4 +334,19 @@ const styles = StyleSheet.create({
   },
   emptyTitle: { fontSize: 15, fontWeight: '600', color: COLORS.textSecondary, marginBottom: 4 },
   emptyText: { fontSize: 13, color: COLORS.textTertiary, textAlign: 'center' },
+  retryBtn: {
+    flexDirection: 'row', alignItems: 'center', gap: 6,
+    marginTop: 16, paddingHorizontal: 20, paddingVertical: 10,
+    borderRadius: 20, borderWidth: 1.5, borderColor: COLORS.primary,
+    backgroundColor: COLORS.primaryLight,
+  },
+  retryText: { fontSize: 13, fontWeight: '600', color: COLORS.primary },
+  loadMoreBtn: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
+    marginTop: 8, paddingVertical: 14,
+    borderRadius: 14, borderWidth: 1.5, borderColor: COLORS.primary,
+    backgroundColor: COLORS.primaryLight,
+    minHeight: 48,
+  },
+  loadMoreText: { fontSize: 13, fontWeight: '600', color: COLORS.primary },
 });

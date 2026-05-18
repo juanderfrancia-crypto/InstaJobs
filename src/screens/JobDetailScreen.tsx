@@ -6,9 +6,9 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/hooks/useAuth';
 import { sendPushNotification } from '@/lib/notifications';
+import { applyToJob, checkApplication } from '@/services';
 import { COLORS, CATEGORIES, SHADOW_SM, SHADOW_MD } from '@/constants';
 import { Badge } from '@/components/UI';
 import { JobPost } from '@/types';
@@ -32,14 +32,8 @@ export function JobDetailScreen({ route, navigation }: any) {
   const clientName = (job as any).client?.full_name as string | undefined;
 
   useEffect(() => {
-    if (!isWorker) return;
-    supabase
-      .from('job_applications')
-      .select('id')
-      .eq('job_id', job.id)
-      .eq('worker_id', user.id)
-      .maybeSingle()
-      .then(({ data }) => { if (data) setApplied(true); });
+    if (!isWorker || !user?.id) return;
+    checkApplication(job.id, user.id).then(applied => { if (applied) setApplied(true); });
   }, []);
 
   const category = CATEGORIES.find(c => c.id === job.trade_category);
@@ -56,21 +50,8 @@ export function JobDetailScreen({ route, navigation }: any) {
       return;
     }
     setLoading(true);
-    const { error } = await supabase.from('job_applications').insert({
-      job_id: job.id,
-      worker_id: user?.id,
-      message: message.trim(),
-      status: 'pending',
-    });
-    setLoading(false);
-    if (error) {
-      if (error.code === '23505') {
-        setApplied(true);
-        Alert.alert('Ya aplicaste', 'Ya enviaste una aplicación para este trabajo anteriormente');
-      } else {
-        Alert.alert('Error al aplicar', error.message);
-      }
-    } else {
+    try {
+      await applyToJob({ job_id: job.id, worker_id: user?.id, message: message.trim(), status: 'pending' });
       setApplied(true);
       sendPushNotification(
         job.client_id,
@@ -83,6 +64,15 @@ export function JobDetailScreen({ route, navigation }: any) {
         'El cliente podrá ver tu perfil y contactarte por WhatsApp si estás interesado.',
         [{ text: 'Entendido' }]
       );
+    } catch (e: any) {
+      if (e?.code === '23505') {
+        setApplied(true);
+        Alert.alert('Ya aplicaste', 'Ya enviaste una aplicación para este trabajo anteriormente');
+      } else {
+        Alert.alert('Error al aplicar', e?.message ?? 'No se pudo enviar la aplicación');
+      }
+    } finally {
+      setLoading(false);
     }
   };
 

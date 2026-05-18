@@ -4,8 +4,8 @@ import { createClient } from '@supabase/supabase-js';
 import Constants from 'expo-constants';
 import { AppState } from 'react-native';
 
-const supabaseUrl = Constants.expoConfig?.extra?.supabaseUrl ?? '';
-const supabaseAnonKey = Constants.expoConfig?.extra?.supabaseAnonKey ?? '';
+const supabaseUrl = Constants.expoConfig?.extra?.supabaseUrl ?? 'https://placeholder.supabase.co';
+const supabaseAnonKey = Constants.expoConfig?.extra?.supabaseAnonKey ?? 'placeholder-key';
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {

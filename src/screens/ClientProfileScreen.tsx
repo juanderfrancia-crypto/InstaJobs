@@ -5,8 +5,8 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { supabase } from '@/lib/supabase';
 import { COLORS, CATEGORIES, SHADOW_SM } from '@/constants';
+import { fetchClientProfileData } from '@/services';
 import { Avatar, Badge, StarRating } from '@/components/UI';
 
 export function ClientProfileScreen({ route, navigation }: any) {
@@ -20,51 +20,18 @@ export function ClientProfileScreen({ route, navigation }: any) {
   const [loading, setLoading]     = useState(true);
 
   useEffect(() => {
-    const load = async () => {
-      const [
-        { data: userData },
-        { data: allJobs },
-        { data: recentData },
-        { data: reviewData },
-      ] = await Promise.all([
-        supabase
-          .from('users')
-          .select('id, full_name, municipality, avatar_url, verified_phone, verified_id, created_at')
-          .eq('id', clientId)
-          .single(),
-        supabase
-          .from('job_posts')
-          .select('status')
-          .eq('client_id', clientId),
-        supabase
-          .from('job_posts')
-          .select('id, title, municipality, trade_category, status, created_at')
-          .eq('client_id', clientId)
-          .in('status', ['open', 'in_progress'])
-          .order('created_at', { ascending: false })
-          .limit(3),
-        supabase
-          .from('reviews')
-          .select('id, rating, comment, created_at, reviewer:users(full_name)')
-          .eq('reviewed_id', clientId)
-          .order('created_at', { ascending: false })
-          .limit(10),
-      ]);
-
-      setClient(userData);
-      setRecentJobs(recentData ?? []);
-      setReviews(reviewData ?? []);
-
-      const jobs = allJobs ?? [];
-      setJobStats({
-        total:     jobs.length,
-        completed: jobs.filter(j => j.status === 'completed').length,
-        cancelled: jobs.filter(j => j.status === 'cancelled').length,
-      });
-
-      setLoading(false);
-    };
-    load();
+    fetchClientProfileData(clientId)
+      .then(({ client, allJobs, recentJobs, reviews }) => {
+        setClient(client);
+        setRecentJobs(recentJobs);
+        setReviews(reviews);
+        setJobStats({
+          total:     allJobs.length,
+          completed: allJobs.filter((j: any) => j.status === 'completed').length,
+          cancelled: allJobs.filter((j: any) => j.status === 'cancelled').length,
+        });
+      })
+      .finally(() => setLoading(false));
   }, [clientId]);
 
   const completionRate = jobStats.total > 0

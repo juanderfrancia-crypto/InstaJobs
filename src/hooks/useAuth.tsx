@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState } from 'react';
+import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import { Session } from '@supabase/supabase-js';
 import { User } from '@/types';
@@ -34,7 +34,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setSession(session);
       if (session) fetchUser(session.user.id);
       else setLoading(false);
-    });
+    }).catch(() => setLoading(false));
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session);
@@ -45,28 +45,35 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return () => subscription.unsubscribe();
   }, []);
 
-  const fetchUser = async (id: string) => {
-    const { data } = await supabase.from('users').select('*').eq('id', id).single();
-    if (!data) {
-      setIsNewUser(true);
+  const fetchUser = useCallback(async (id: string) => {
+    try {
+      const { data } = await supabase.from('users').select('*').eq('id', id).single();
+      if (!data) setIsNewUser(true);
+      setUser(data);
+    } catch {
+      setUser(null);
+    } finally {
+      setLoading(false);
     }
-    setUser(data);
-    setLoading(false);
-  };
+  }, []);
 
-  const refreshUser = async () => {
+  const refreshUser = useCallback(async () => {
     if (session) await fetchUser(session.user.id);
-  };
+  }, [session, fetchUser]);
 
-  const signOut = async () => {
+  const signOut = useCallback(async () => {
     await supabase.auth.signOut();
     setUser(null);
     setSession(null);
     setIsNewUser(false);
-  };
+  }, []);
+
+  const value = useMemo(() => ({
+    session, user, loading, isNewUser, setIsNewUser, signOut, refreshUser,
+  }), [session, user, loading, isNewUser, signOut, refreshUser]);
 
   return (
-    <AuthContext.Provider value={{ session, user, loading, isNewUser, setIsNewUser, signOut, refreshUser }}>
+    <AuthContext.Provider value={value}>
       {children}
     </AuthContext.Provider>
   );

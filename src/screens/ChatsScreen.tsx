@@ -1,13 +1,13 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity,
-  StyleSheet, Linking, ActivityIndicator, StatusBar, RefreshControl,
+  StyleSheet, Alert, Linking, ActivityIndicator, StatusBar, RefreshControl,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
-import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/hooks/useAuth';
+import { fetchWorkerChats, fetchClientChats } from '@/services';
 import { COLORS, CATEGORIES, SHADOW_SM } from '@/constants';
 import { Avatar, Badge } from '@/components/UI';
 
@@ -41,14 +41,8 @@ export function ChatsScreen() {
     if (!user) return;
 
     if (isWorker) {
-      const { data } = await supabase
-        .from('job_applications')
-        .select('id, status, created_at, job:job_posts(id, title, municipality, client:users(id, full_name, phone, avatar_url))')
-        .eq('worker_id', user.id)
-        .order('created_at', { ascending: false })
-        .limit(50);
-
-      const items: ContactItem[] = (data ?? []).map((app: any) => ({
+      const data = await fetchWorkerChats(user.id);
+      const items: ContactItem[] = data.map((app: any) => ({
         id: app.id,
         name: app.job?.client?.full_name ?? 'Cliente',
         subtitle: app.job?.municipality ?? '',
@@ -60,39 +54,19 @@ export function ChatsScreen() {
       }));
       setContacts(items);
     } else {
-      const { data: myJobs } = await supabase
-        .from('job_posts')
-        .select('id, title')
-        .eq('client_id', user.id);
-
-      if (!myJobs?.length) { setContacts([]); return; }
-
-      const { data: apps } = await supabase
-        .from('job_applications')
-        .select('id, status, created_at, job_id, worker_id')
-        .in('job_id', myJobs.map(j => j.id))
-        .order('created_at', { ascending: false })
-        .limit(50);
-
-      const workerIds = [...new Set((apps ?? []).map((a: any) => a.worker_id))];
-      const { data: workerProfiles } = workerIds.length
-        ? await supabase
-            .from('worker_profiles')
-            .select('user_id, full_name, whatsapp_number, trades, avatar_url')
-            .in('user_id', workerIds)
-        : { data: [] };
+      const { jobs, applications, workerProfiles } = await fetchClientChats(user.id);
+      if (!jobs.length) { setContacts([]); return; }
 
       const workerMap: Record<string, any> = Object.fromEntries(
-        (workerProfiles ?? []).map((w: any) => [w.user_id, w])
+        workerProfiles.map((w: any) => [w.user_id, w])
       );
-      const jobMap: Record<string, string> = Object.fromEntries((myJobs ?? []).map(j => [j.id, j.title]));
+      const jobMap: Record<string, string> = Object.fromEntries(jobs.map((j: any) => [j.id, j.title]));
 
-      const items: ContactItem[] = (apps ?? []).map((app: any) => {
+      const items: ContactItem[] = applications.map((app: any) => {
         const wp = workerMap[app.worker_id];
         const tradeLabels = (wp?.trades ?? [])
           .map((t: string) => CATEGORIES.find(c => c.id === t)?.label ?? t)
-          .slice(0, 2)
-          .join(' · ');
+          .slice(0, 2).join(' · ');
         return {
           id: app.id,
           name: wp?.full_name ?? 'Trabajador',
@@ -119,7 +93,13 @@ export function ChatsScreen() {
   };
 
   const openWhatsApp = (phone: string | undefined, name: string) => {
-    if (!phone) return;
+    if (!phone) {
+      Alert.alert(
+        'Sin número de WhatsApp',
+        `${name} no ha registrado su número de WhatsApp. Puedes contactarlo por otro medio.`,
+      );
+      return;
+    }
     const num = phone.replace(/\D/g, '');
     Linking.openURL(
       `https://wa.me/57${num}?text=Hola ${name}, te escribo desde InstaJobs para continuar con lo del trabajo.`

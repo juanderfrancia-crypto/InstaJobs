@@ -1,14 +1,15 @@
 import React, { useState, useCallback } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity,
-  StyleSheet, StatusBar, Linking, RefreshControl,
+  StyleSheet, StatusBar, Linking, RefreshControl, Alert,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
-import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/hooks/useAuth';
+import { useRealtimeChannel } from '@/hooks/useRealtimeChannel';
 import { COLORS, CATEGORIES, SHADOW_SM, SHADOW_MD } from '@/constants';
+import { cancelApplication, fetchWorkerApplications } from '@/services';
 
 type AppStatus = 'pending' | 'accepted' | 'rejected';
 
@@ -54,17 +55,44 @@ export function MyApplicationsScreen({ navigation }: any) {
 
   const load = useCallback(async () => {
     if (!user) return;
-    const { data } = await supabase
-      .from('job_applications')
-      .select('id, status, message, created_at, job:job_posts(id, title, municipality, trade_category, status, client:users(full_name, phone))')
-      .eq('worker_id', user.id)
-      .order('created_at', { ascending: false });
-    setApplications((data ?? []) as any);
+    const data = await fetchWorkerApplications(user.id);
+    setApplications(data as any);
     setLoading(false);
     setRefreshing(false);
   }, [user]);
 
   useFocusEffect(useCallback(() => { load(); }, [load]));
+
+  // Trabajadores ven cambios de estado (aceptado/rechazado) en tiempo real
+  useRealtimeChannel(
+    `my_apps_${user?.id}`,
+    'job_applications',
+    'UPDATE',
+    load,
+    user?.id ? `worker_id=eq.${user.id}` : undefined,
+  );
+
+  const handleCancel = (applicationId: string) => {
+    Alert.alert(
+      'Cancelar postulación',
+      '¿Seguro? Retirarás tu aplicación para este trabajo.',
+      [
+        { text: 'No', style: 'cancel' },
+        {
+          text: 'Sí, cancelar',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await cancelApplication(applicationId, user?.id ?? '');
+              setApplications(prev => prev.filter(a => a.id !== applicationId));
+            } catch {
+              Alert.alert('Error', 'No se pudo cancelar la postulación');
+            }
+          },
+        },
+      ]
+    );
+  };
 
   const handleWhatsApp = (phone: string, jobTitle: string) => {
     const clean = phone.replace(/\D/g, '');
@@ -81,6 +109,7 @@ export function MyApplicationsScreen({ navigation }: any) {
     const cfg = STATUS_CONFIG[item.status] ?? STATUS_CONFIG.pending;
     const category = CATEGORIES.find(c => c.id === item.job?.trade_category);
     const isAccepted = item.status === 'accepted';
+    const isPending = item.status === 'pending';
 
     return (
       <View key={item.id} style={[styles.card, isAccepted && styles.cardAccepted]}>
@@ -126,6 +155,17 @@ export function MyApplicationsScreen({ navigation }: any) {
             </TouchableOpacity>
           )}
         </View>
+
+        {isPending && (
+          <TouchableOpacity
+            style={styles.cancelBtn}
+            onPress={() => handleCancel(item.id)}
+            activeOpacity={0.8}
+          >
+            <Ionicons name="close-outline" size={14} color={COLORS.danger} />
+            <Text style={styles.cancelBtnText}>Cancelar postulación</Text>
+          </TouchableOpacity>
+        )}
 
         {isAccepted && (
           <View style={styles.acceptedBanner}>
@@ -244,6 +284,13 @@ const styles = StyleSheet.create({
     padding: 10, marginTop: 10,
   },
   acceptedBannerText: { flex: 1, fontSize: 12, color: COLORS.success, lineHeight: 17 },
+  cancelBtn: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5,
+    marginTop: 10, paddingVertical: 9, borderRadius: 10,
+    borderWidth: 1.5, borderColor: COLORS.danger,
+    backgroundColor: COLORS.dangerBg,
+  },
+  cancelBtnText: { fontSize: 12, fontWeight: '600', color: COLORS.danger },
   empty: { alignItems: 'center', paddingVertical: 60 },
   emptyIcon: {
     width: 64, height: 64, borderRadius: 20,

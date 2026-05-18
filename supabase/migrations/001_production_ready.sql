@@ -19,6 +19,7 @@ ALTER TABLE public.job_posts
 
 -- 4.1 job_applications: solo el cliente puede cambiar estado
 DROP POLICY IF EXISTS "Workers update own applications" ON public.job_applications;
+DROP POLICY IF EXISTS "Clients update application status" ON public.job_applications;
 
 CREATE POLICY "Clients update application status" ON public.job_applications
   FOR UPDATE
@@ -36,6 +37,10 @@ CREATE POLICY "Clients update application status" ON public.job_applications
 -- 4.2 job_posts: separar la política FOR ALL en operaciones explícitas
 -- (FOR ALL sin WITH CHECK no protege bien el INSERT)
 DROP POLICY IF EXISTS "Clients manage own jobs" ON public.job_posts;
+DROP POLICY IF EXISTS "Clients can read own cancelled jobs" ON public.job_posts;
+DROP POLICY IF EXISTS "Clients can insert own jobs" ON public.job_posts;
+DROP POLICY IF EXISTS "Clients can update own jobs" ON public.job_posts;
+DROP POLICY IF EXISTS "Clients can delete own jobs" ON public.job_posts;
 
 CREATE POLICY "Clients can read own cancelled jobs" ON public.job_posts
   FOR SELECT USING (true);  -- la política pública ya existe, esto es redundante pero explícito
@@ -53,6 +58,7 @@ CREATE POLICY "Clients can delete own jobs" ON public.job_posts
 
 -- 4.3 reviews: el reviewer no puede modificar ni borrar su reseña
 DROP POLICY IF EXISTS "Authenticated users can review" ON public.reviews;
+DROP POLICY IF EXISTS "Authenticated users can review new" ON public.reviews;
 
 CREATE POLICY "Authenticated users can review" ON public.reviews
   FOR INSERT
