@@ -44,7 +44,7 @@ export default {
       [
         'expo-notifications',
         {
-          icon: './assets/icon.png',
+          icon: './assets/notification.png',
           color: '#2563EB',
           defaultChannel: 'default',
           sounds: [],
