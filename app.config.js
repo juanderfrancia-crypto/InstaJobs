@@ -25,6 +25,8 @@ export default {
         'ACCESS_COARSE_LOCATION',
         'CAMERA',
         'READ_EXTERNAL_STORAGE',
+        'READ_MEDIA_IMAGES',
+        'READ_MEDIA_VIDEO',
         'WRITE_EXTERNAL_STORAGE',
         'RECEIVE_BOOT_COMPLETED',
         'VIBRATE',

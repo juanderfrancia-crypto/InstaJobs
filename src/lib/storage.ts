@@ -1,7 +1,20 @@
-import { Alert } from 'react-native';
+import { Alert, Platform } from 'react-native';
+import * as ImagePicker from 'expo-image-picker';
 import { supabase } from './supabase';
 
 const MAX_PHOTO_BYTES = 8 * 1024 * 1024; // 8 MB
+
+async function requestMediaPermission(): Promise<boolean> {
+  const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+  if (status !== 'granted') {
+    Alert.alert(
+      'Permiso requerido',
+      'Necesitamos acceso a tu galería para subir fotos. Actívalo en Configuración > Aplicaciones > InstaJobs.',
+    );
+    return false;
+  }
+  return true;
+}
 
 async function uploadBuffer(
   userId: string,
@@ -24,56 +37,51 @@ async function uploadBuffer(
   return `${data.publicUrl}?t=${Date.now()}`;
 }
 
-export async function pickAndUploadJobPhoto(userId: string): Promise<string | null> {
-  const ImagePicker = await import('expo-image-picker');
-  const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-  if (status !== 'granted') return null;
+export async function pickAndUploadAvatar(userId: string): Promise<string | null> {
+  if (!(await requestMediaPermission())) return null;
 
   const result = await ImagePicker.launchImageLibraryAsync({
     mediaTypes: ImagePicker.MediaTypeOptions.Images,
-    allowsEditing: true,
-    aspect: [4, 3],
-    quality: 0.8,
+    // allowsEditing causa crashes en Android en ciertos dispositivos/ROMs
+    allowsEditing: Platform.OS === 'ios',
+    aspect: [1, 1],
+    quality: 0.75,
   });
 
-  if (result.canceled || !result.assets[0]) return null;
+  if (result.canceled || !result.assets?.[0]) return null;
   const { uri } = result.assets[0];
   const ext = (uri.split('.').pop() ?? 'jpg').toLowerCase();
-  return uploadBuffer(userId, uri, `${userId}/jobs/photo_${Date.now()}.${ext}`);
+  return uploadBuffer(userId, uri, `${userId}/avatar.${ext}`);
 }
 
 export async function pickAndUploadWorkPhoto(userId: string, index: number): Promise<string | null> {
-  const ImagePicker = await import('expo-image-picker');
-  const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-  if (status !== 'granted') return null;
+  if (!(await requestMediaPermission())) return null;
 
   const result = await ImagePicker.launchImageLibraryAsync({
     mediaTypes: ImagePicker.MediaTypeOptions.Images,
-    allowsEditing: true,
+    allowsEditing: Platform.OS === 'ios',
     aspect: [4, 3],
     quality: 0.8,
   });
 
-  if (result.canceled || !result.assets[0]) return null;
+  if (result.canceled || !result.assets?.[0]) return null;
   const { uri } = result.assets[0];
   const ext = (uri.split('.').pop() ?? 'jpg').toLowerCase();
   return uploadBuffer(userId, uri, `${userId}/work/photo_${index}_${Date.now()}.${ext}`);
 }
 
-export async function pickAndUploadAvatar(userId: string): Promise<string | null> {
-  const ImagePicker = await import('expo-image-picker');
-  const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-  if (status !== 'granted') return null;
+export async function pickAndUploadJobPhoto(userId: string): Promise<string | null> {
+  if (!(await requestMediaPermission())) return null;
 
   const result = await ImagePicker.launchImageLibraryAsync({
     mediaTypes: ImagePicker.MediaTypeOptions.Images,
-    allowsEditing: true,
-    aspect: [1, 1],
-    quality: 0.75,
+    allowsEditing: Platform.OS === 'ios',
+    aspect: [4, 3],
+    quality: 0.8,
   });
 
-  if (result.canceled || !result.assets[0]) return null;
+  if (result.canceled || !result.assets?.[0]) return null;
   const { uri } = result.assets[0];
   const ext = (uri.split('.').pop() ?? 'jpg').toLowerCase();
-  return uploadBuffer(userId, uri, `${userId}/avatar.${ext}`);
+  return uploadBuffer(userId, uri, `${userId}/jobs/photo_${Date.now()}.${ext}`);
 }

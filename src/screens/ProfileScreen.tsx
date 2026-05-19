@@ -25,6 +25,7 @@ type MenuItem = {
   iconBg: string;
   iconColor: string;
   highlight?: boolean;
+  badge?: number;
 };
 
 type MenuSection = {
@@ -53,13 +54,18 @@ export function ProfileScreen({ navigation }: any) {
   const handleChangePhoto = useCallback(async () => {
     if (uploadingPhoto || !user) return;
     setUploadingPhoto(true);
-    const url = await pickAndUploadAvatar(user.id);
-    if (url) {
-      await updateUser(user.id, { avatar_url: url });
-      if (isWorker) await updateWorkerAvatar(user.id, url);
-      await refreshUser();
+    try {
+      const url = await pickAndUploadAvatar(user.id);
+      if (url) {
+        await updateUser(user.id, { avatar_url: url });
+        if (isWorker) await updateWorkerAvatar(user.id, url);
+        await refreshUser();
+      }
+    } catch {
+      Alert.alert('Error', 'No se pudo cambiar la foto. Intenta de nuevo.');
+    } finally {
+      setUploadingPhoto(false);
     }
-    setUploadingPhoto(false);
   }, [uploadingPhoto, user, isWorker, refreshUser]);
 
   const handleSignOut = useCallback(() => {
@@ -112,16 +118,6 @@ export function ProfileScreen({ navigation }: any) {
     {
       title: 'Configuración',
       items: [
-        {
-          iconName: 'notifications-outline',
-          label: 'Notificaciones',
-          onPress: () => navigation.navigate('ComingSoon', {
-            title: 'Notificaciones',
-            description: 'Recibirás alertas en tiempo real cuando alguien aplique a tus trabajos o te contacte. Disponible en la próxima actualización.',
-            iconName: 'notifications-outline',
-          }),
-          iconBg: '#EDE9FE', iconColor: '#7C3AED',
-        },
         {
           iconName: 'shield-checkmark-outline',
           label: 'Verificar identidad',
