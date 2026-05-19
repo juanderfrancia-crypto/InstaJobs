@@ -1,15 +1,15 @@
 import { Alert, Platform } from 'react-native';
-import * as ImagePicker from 'expo-image-picker';
 import { supabase } from './supabase';
 
 const MAX_PHOTO_BYTES = 8 * 1024 * 1024; // 8 MB
 
 async function requestMediaPermission(): Promise<boolean> {
+  const ImagePicker = await import('expo-image-picker');
   const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
   if (status !== 'granted') {
     Alert.alert(
       'Permiso requerido',
-      'Necesitamos acceso a tu galería para subir fotos. Actívalo en Configuración > Aplicaciones > InstaJobs.',
+      'Necesitamos acceso a tu galería. Actívalo en Configuración > Aplicaciones > InstaJobs.',
     );
     return false;
   }
@@ -39,10 +39,11 @@ async function uploadBuffer(
 
 export async function pickAndUploadAvatar(userId: string): Promise<string | null> {
   if (!(await requestMediaPermission())) return null;
+  const ImagePicker = await import('expo-image-picker');
 
   const result = await ImagePicker.launchImageLibraryAsync({
     mediaTypes: ImagePicker.MediaTypeOptions.Images,
-    // allowsEditing causa crashes en Android en ciertos dispositivos/ROMs
+    // allowsEditing: true causa crashes en Android en ciertos dispositivos/ROMs
     allowsEditing: Platform.OS === 'ios',
     aspect: [1, 1],
     quality: 0.75,
@@ -56,6 +57,7 @@ export async function pickAndUploadAvatar(userId: string): Promise<string | null
 
 export async function pickAndUploadWorkPhoto(userId: string, index: number): Promise<string | null> {
   if (!(await requestMediaPermission())) return null;
+  const ImagePicker = await import('expo-image-picker');
 
   const result = await ImagePicker.launchImageLibraryAsync({
     mediaTypes: ImagePicker.MediaTypeOptions.Images,
@@ -72,6 +74,7 @@ export async function pickAndUploadWorkPhoto(userId: string, index: number): Pro
 
 export async function pickAndUploadJobPhoto(userId: string): Promise<string | null> {
   if (!(await requestMediaPermission())) return null;
+  const ImagePicker = await import('expo-image-picker');
 
   const result = await ImagePicker.launchImageLibraryAsync({
     mediaTypes: ImagePicker.MediaTypeOptions.Images,
