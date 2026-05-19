@@ -7,7 +7,6 @@ import { Ionicons } from '@expo/vector-icons';
 import { COLORS, SHADOW_LG } from '@/constants';
 import { useAuth } from '@/hooks/useAuth';
 import { useNotifications } from '@/hooks/useNotifications';
-import { useUnreadCount } from '@/hooks/useUnreadCount';
 
 import { HomeScreen }    from '@/screens/HomeScreen';
 import { SearchScreen }  from '@/screens/SearchScreen';
@@ -27,7 +26,7 @@ const TAB_ICONS: Record<TabName, { active: keyof typeof Ionicons.glyphMap; inact
   Profile: { active: 'person',       inactive: 'person-outline' },
 };
 
-function TabBar({ state, descriptors, navigation, unreadCount }: any) {
+function TabBar({ state, descriptors, navigation }: any) {
   const insets = useSafeAreaInsets();
 
   return (
@@ -54,24 +53,13 @@ function TabBar({ state, descriptors, navigation, unreadCount }: any) {
           );
         }
 
-        const showBadge = route.name === 'Profile' && unreadCount > 0;
-
         return (
           <TouchableOpacity key={route.key} onPress={onPress} style={styles.tabItem} activeOpacity={0.7}>
-            <View>
-              <Ionicons
-                name={isFocused ? icons?.active : icons?.inactive}
-                size={22}
-                color={isFocused ? COLORS.primary : COLORS.textTertiary}
-              />
-              {showBadge && (
-                <View style={styles.badge}>
-                  {unreadCount < 10 && (
-                    <Text style={styles.badgeText}>{unreadCount}</Text>
-                  )}
-                </View>
-              )}
-            </View>
+            <Ionicons
+              name={isFocused ? icons?.active : icons?.inactive}
+              size={22}
+              color={isFocused ? COLORS.primary : COLORS.textTertiary}
+            />
             <Text style={[styles.tabLabel, isFocused && styles.tabLabelActive]}>{label}</Text>
             {isFocused && <View style={styles.tabDot} />}
           </TouchableOpacity>
@@ -86,11 +74,9 @@ export function MainTabs() {
   const navigation = useNavigation<any>();
   useNotifications(navigation);
   const isWorker = user?.role === 'worker';
-  const unreadCount = useUnreadCount();
-
   return (
     <Tab.Navigator
-      tabBar={(props) => <TabBar {...props} unreadCount={unreadCount} />}
+      tabBar={(props) => <TabBar {...props} />}
       screenOptions={{ headerShown: false }}
     >
       <Tab.Screen name="Home"    component={HomeScreen}    options={{ tabBarLabel: 'Inicio' }} />
@@ -140,13 +126,4 @@ const styles = StyleSheet.create({
     ...SHADOW_LG,
     shadowColor: COLORS.primary,
   },
-  badge: {
-    position: 'absolute', top: -3, right: -5,
-    minWidth: 16, height: 16, borderRadius: 8,
-    backgroundColor: '#EF4444',
-    alignItems: 'center', justifyContent: 'center',
-    paddingHorizontal: 3,
-    borderWidth: 1.5, borderColor: COLORS.card,
-  },
-  badgeText: { fontSize: 9, fontWeight: '800', color: '#fff' },
 });
